@@ -26,7 +26,13 @@ var (
 
 func main() {
 	g_app.Name = "xn"
-	g_app.Usage = "multi-way notification sender tool"
+	g_app.Desc = "multi-way notification sender tool"
+	g_app.Usage = `
+// Slack
+xn slack auth
+xn slack send testtesttest
+xn slack  help  send
+    `
 	g_app.Version = Version
 	g_app.Copyright = "(C) 2020 Shuhei Kubota"
 	if err := g_app.Run(os.Args); err != nil {
