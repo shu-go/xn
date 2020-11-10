@@ -1,0 +1,65 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/andrew-d/go-termutil"
+)
+
+type cmdCmd struct {
+	_    struct{}   `help:"notify by command with STDIN argument"`
+	Send cmdSendCmd `help:"send a notification with Slack"`
+}
+
+type cmdSendCmd struct{}
+
+func (c cmdSendCmd) Run(args []string) error {
+	//
+	// prepare
+	//
+
+	if len(args) == 0 {
+		return fmt.Errorf("command name is required")
+	}
+
+	text := ""
+	if !termutil.Isatty(os.Stdin.Fd()) {
+		bytes, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			bytes = []byte{}
+		}
+		if len(text) == 0 {
+			text = string(bytes)
+		} else if len(bytes) != 0 {
+			text += "\n" + string(bytes)
+		}
+	}
+	text = strings.TrimRight(text, "\r\n")
+	if len(text) == 0 {
+		return nil
+	}
+
+	//
+	// send
+	//
+	targs := make([]string, 0, len(args)-1)
+	for _, a := range args[1:] {
+		targs = append(targs, strings.Replace(a, "{STDIN}", text, -1))
+	}
+
+	cmd := exec.Command(args[0], targs...)
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run command(%v %q): %v\n", args[0], targs, err)
+	}
+
+	return nil
+}
+
+func init() {
+	appendCommand(&cmdCmd{}, "cmd", "")
+}

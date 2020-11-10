@@ -1,0 +1,115 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	"github.com/andrew-d/go-termutil"
+	api "github.com/mailgun/mailgun-go"
+	"github.com/pkg/browser"
+
+	"github.com/shu-go/xn/client/mailgun"
+)
+
+type mailgunCmd struct {
+	_    struct{}       `help:"notify by Mailgun"`
+	Send mailgunSendCmd `help:"send a notification"`
+	Auth mailgunAuthCmd `help:"authenticate"`
+}
+
+type mailgunSendCmd struct {
+	Domain  string `help:"domain"`
+	From    string `default:"xn" help:"sender"`
+	To      string `help:"recipient"`
+	Subject string `default:"xn" help:"subject"`
+	Body    string `help:"body"`
+}
+
+type mailgunAuthCmd struct{}
+
+func (c mailgunSendCmd) Run(global globalCmd) error {
+	config, _ := loadConfig(global.Config)
+
+	if config.Mailgun.PublicAPIKey == "" || config.Mailgun.PrivateAPIKey == "" {
+		return fmt.Errorf("auth first")
+	}
+
+	//
+	// prepare
+	//
+
+	c.Domain = firstNonEmpty(c.Domain, config.Mailgun.Domain)
+	if c.Domain == "" {
+		return fmt.Errorf("Domain not specified")
+	}
+
+	if !termutil.Isatty(os.Stdin.Fd()) {
+		bytes, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			bytes = []byte{}
+		}
+		if len(c.Body) == 0 {
+			c.Body = string(bytes)
+		} else if len(bytes) != 0 {
+			c.Body += "\n" + string(bytes)
+		}
+	}
+
+	mg := api.NewMailgun(c.Domain, config.Mailgun.PrivateAPIKey, config.Mailgun.PublicAPIKey)
+	msg := api.NewMessage(
+		c.From,
+		c.Subject,
+		c.Body,
+		c.To,
+	)
+	_, _, err := mg.Send(msg)
+	if err != nil {
+		return fmt.Errorf("failed to send with Mailgun: %v", err)
+	}
+
+	return nil
+}
+
+func (c mailgunAuthCmd) Run(global globalCmd) error {
+	config, _ := loadConfig(global.Config)
+
+	var apikey string
+	fmt.Printf("Jump to %s and input API Keys and Domain(optional).\nOK? (Press Enter)", mailgun.OAUTH2_AUTH_URL)
+	fmt.Scanln(&apikey)
+
+	if err := browser.OpenURL(mailgun.OAUTH2_AUTH_URL); err != nil {
+		return fmt.Errorf("failed to open the URL(%s): %v", mailgun.OAUTH2_AUTH_URL, err)
+	}
+
+	apikey = ""
+	fmt.Print("PUBLIC API Key>")
+	fmt.Scanln(&apikey)
+	if apikey == "" {
+		return fmt.Errorf("empty value passed. aborting.")
+	}
+	config.Mailgun.PublicAPIKey = apikey
+
+	apikey = ""
+	fmt.Print("PRIVATE API Key>")
+	fmt.Scanln(&apikey)
+	if apikey == "" {
+		return fmt.Errorf("empty value passed. aborting.")
+	}
+	config.Mailgun.PrivateAPIKey = apikey
+
+	var domain string
+	fmt.Print("and Domain?>")
+	fmt.Scanln(&domain)
+	if domain != "" {
+		config.Mailgun.Domain = domain
+	}
+
+	saveConfig(config, global.Config)
+
+	return nil
+}
+
+func init() {
+	appendCommand(&mailgunCmd{}, "mailgun, mg", "")
+}
