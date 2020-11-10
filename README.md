@@ -8,16 +8,27 @@
 xn
 
 Sub commands:
-  gmail, gm       notify by gmail
   growl, gr       notify by Growl(GNTP)
   pushbullet, pb  notify by Pushbullet
   slack, sl       notify by slack
 
 Options:
-  --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./notiphi.conf)
+  --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./xn.conf)
 
 Usage:
-  multi-way notification sender tool
+  # Slack
+  # auth
+  xn slack auth
+  # send
+  xn slack send testtesttest
+  # about 'send'
+  xn slack  help  send
+
+Help sub commands:
+  help     xn help subcommnad subsubcommand
+  version  show version
+
+(C) 2020 Shuhei Kubota
 ```
 
 ## slack

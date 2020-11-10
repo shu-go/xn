@@ -28,9 +28,12 @@ func main() {
 	g_app.Name = "xn"
 	g_app.Desc = "multi-way notification sender tool"
 	g_app.Usage = `
-// Slack
+# Slack
+# auth
 xn slack auth
+# send
 xn slack send testtesttest
+# about 'send'
 xn slack  help  send
     `
 	g_app.Version = Version
