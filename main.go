@@ -17,7 +17,7 @@ func init() {
 }
 
 type globalCmd struct {
-	Config string `cli:"config, conf=CONFIG_FILE" default:"./xn.conf" help:"load configurations from CONFIG_FILE"`
+	Config string `cli:"config, conf=CONFIG_FILE" help:"load configurations from CONFIG_FILE (default: ./xn.conf or EXE_PATH/xn.conf)" `
 }
 
 var (
