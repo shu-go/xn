@@ -24,7 +24,7 @@ var (
 type slackCmd struct {
 	_    struct{}     `help:"notify by slack"`
 	Send slackSendCmd `help:"send a notification"`
-	Auth slackAuthCmd `help:"authenticate"`
+	Auth slackAuthCmd
 }
 
 type slackSendCmd struct {
@@ -36,8 +36,9 @@ type slackSendCmd struct {
 }
 
 type slackAuthCmd struct {
-	Port    int `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
-	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
+	_       struct{} `help:"authenticate"   usage:"1. go to https://console.cloud.google.com\n2. make a new project\n3. xn slack auth CLIENT_ID CLIENT_SECRET"`
+	Port    int      `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
+	Timeout int      `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
 }
 
 func (c slackSendCmd) Run(global globalCmd, args []string) error {
@@ -107,14 +108,22 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
+	var argClientID, argCLientSecret string
+	if len(args) >= 2 {
+		argClientID = args[0]
+		argCLientSecret = args[1]
+	}
+
 	//
 	// prepare
 	//
 	SLACK_OAUTH2_CLIENT_ID = firstNonEmpty(
+		argClientID,
 		config.Slack.ClientID,
 		os.Getenv("SLACK_OAUTH2_CLIENT_ID"),
 		SLACK_OAUTH2_CLIENT_ID)
 	SLACK_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		argCLientSecret,
 		config.Slack.ClientSecret,
 		os.Getenv("SLACK_OAUTH2_CLIENT_SECRET"),
 		SLACK_OAUTH2_CLIENT_SECRET)
