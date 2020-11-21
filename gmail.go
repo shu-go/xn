@@ -41,7 +41,7 @@ type gmailSendCmd struct {
 }
 
 type gmailAuthCmd struct {
-	_       struct{} `help:"authenticate (CAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file)"  usage:"1. go to https://console.cloud.google.com\n2. make a new project\n3. go to https://console.cloud.google.com/apis/credentials\n4. make an OAuth2 Client(Desktop)\n5. xn gmail auth CLIENT_ID CLIENT_SECRET\nCAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file"`
+	_       struct{} `help:"authenticate (CAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file)"  usage:"1. go to https://console.cloud.google.com\n2. make a new project\n3. go to https://console.cloud.google.com/apis/credentials/consent\n4. finish the consent setting up (name and mail address)\n5. go to https://console.cloud.google.com/apis/dashboard\n6. enable Gmail API\n7. go to https://console.cloud.google.com/apis/credentials\n8. make an OAuth2 Client(Desktop)\n9. xn gmail auth CLIENT_ID CLIENT_SECRET\nCAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file"`
 	Port    int      `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
 	Timeout int      `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
 }
