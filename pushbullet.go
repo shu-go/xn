@@ -24,7 +24,7 @@ type pbCmd struct {
 	_ struct{} `help:"notify by Pushbullet"`
 
 	Send pbSendCmd `help:"send a notification"`
-	Auth pbAuthCmd `help:"authenticate"`
+	Auth pbAuthCmd
 }
 
 type pbSendCmd struct {
@@ -33,8 +33,9 @@ type pbSendCmd struct {
 }
 
 type pbAuthCmd struct {
-	Port    int `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
-	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
+	_       struct{} `help:"authenticate"   usage:"1. go to https://www.pushbullet.com/#settings/clients\n2. make a new OAuth Client\n3. xn pushbullet auth CLIENT_ID CLIENT_SECRET"`
+	Port    int      `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
+	Timeout int      `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
 }
 
 func (c pbSendCmd) Run(global globalCmd, args []string) error {
@@ -82,17 +83,25 @@ func (c pbSendCmd) Run(global globalCmd, args []string) error {
 	return nil
 }
 
-func (c pbAuthCmd) Run(global globalCmd) error {
+func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
+
+	var argClientID, argCLientSecret string
+	if len(args) >= 2 {
+		argClientID = args[0]
+		argCLientSecret = args[1]
+	}
 
 	//
 	// prepare
 	//
 	PUSHBULLET_OAUTH2_CLIENT_ID = firstNonEmpty(
+		argClientID,
 		config.Pushbullet.ClientID,
 		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_ID"),
 		PUSHBULLET_OAUTH2_CLIENT_ID)
 	PUSHBULLET_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		argCLientSecret,
 		config.Pushbullet.ClientSecret,
 		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_SECRET"),
 		PUSHBULLET_OAUTH2_CLIENT_SECRET)
