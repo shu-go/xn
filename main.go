@@ -31,6 +31,9 @@ func main() {
 # Slack
 # auth
 xn slack auth
+  1. go to https://api.slack.com/apps
+  2. make a new app
+  3. xn slack auth CLIENT_ID CLIENT_SECRET
 # send
 xn slack send testtesttest
 # about 'send'

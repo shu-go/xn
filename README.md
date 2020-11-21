@@ -1,4 +1,7 @@
+multi-way notification sender tool
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/shu-go/xn)](https://goreportcard.com/report/github.com/shu-go/xn)
+![MIT License](https://img.shields.io/badge/License-MIT-blue)
 
 # Usage
 
@@ -8,17 +11,21 @@
 xn
 
 Sub commands:
+  gmail, gm       notify by gmail
   growl, gr       notify by Growl(GNTP)
   pushbullet, pb  notify by Pushbullet
   slack, sl       notify by slack
 
 Options:
-  --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./xn.conf)
+  --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./xn.conf or EXE_PATH/xn.conf)
 
 Usage:
   # Slack
   # auth
   xn slack auth
+    1. go to https://api.slack.com/apps
+    2. make a new app
+    3. xn slack auth CLIENT_ID CLIENT_SECRET
   # send
   xn slack send testtesttest
   # about 'send'
