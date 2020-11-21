@@ -1,18 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/mail"
-	"net/smtp"
 	"os"
 	"time"
 
 	"github.com/andrew-d/go-termutil"
 	"github.com/pkg/browser"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/gmail/v1"
 
-	"github.com/shu-go/xn/client/gmail"
 	"github.com/shu-go/xn/minredir"
 )
 
@@ -24,7 +28,7 @@ var (
 type gmailCmd struct {
 	_    struct{}     `help:"notify by gmail"`
 	Send gmailSendCmd `help:"send a notification"`
-	Auth gmailAuthCmd `help:"authenticate"`
+	Auth gmailAuthCmd
 }
 
 type gmailSendCmd struct {
@@ -37,8 +41,26 @@ type gmailSendCmd struct {
 }
 
 type gmailAuthCmd struct {
-	Port    int `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
-	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
+	_       struct{} `help:"authenticate (CAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file)"  usage:"1. go to https://console.cloud.google.com\n2. make a new project\n3. go to https://console.cloud.google.com/apis/credentials\n4. make an OAuth2 Client(Desktop)\n5. xn gmail auth CLIENT_ID CLIENT_SECRET\nCAUTION: CLIENT_ID and CLIENT_SECRET are stored into a local conf file"`
+	Port    int      `cli:"port=PORT" default:"7878" help:"a temporal PORT for OAuth authentication."`
+	Timeout int      `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) on authentication transaction. < 0 is infinite."`
+}
+
+func gmailAuthConfig(clientID, clientSecret string, port int) oauth2.Config {
+	redirectURL := fmt.Sprintf("http://localhost:%d/", port)
+
+	return oauth2.Config{
+		ClientID:     GMAIL_OAUTH2_CLIENT_ID,
+		ClientSecret: GMAIL_OAUTH2_CLIENT_SECRET,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:   "https://accounts.google.com/o/oauth2/auth",
+			TokenURL:  "https://oauth2.googleapis.com/token",
+			AuthStyle: oauth2.AuthStyleInParams,
+		},
+		RedirectURL: redirectURL,
+		Scopes:      []string{gmail.GmailSendScope},
+	}
+
 }
 
 func (c gmailSendCmd) Run(global globalCmd, args []string) error {
@@ -57,13 +79,13 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
 		GMAIL_OAUTH2_CLIENT_SECRET)
 
-	if GMAIL_OAUTH2_CLIENT_ID == "" || GMAIL_OAUTH2_CLIENT_SECRET == "" {
+	if config.Gmail.Token == "" || GMAIL_OAUTH2_CLIENT_ID == "" || GMAIL_OAUTH2_CLIENT_SECRET == "" {
 		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
 		return nil
 	}
 
-	c.From = firstNonEmpty(c.From, config.Gmail.User)
+	c.From = firstNonEmpty(c.From, "me")
 	c.Subject = mime.BEncoding.Encode("UTF-8", c.Subject)
 
 	if !termutil.Isatty(os.Stdin.Fd()) {
@@ -87,12 +109,6 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	if len(c.Body) == 0 {
 		return nil
-	}
-
-	gm := gmail.New()
-	accessToken, err := gm.FetchAccessToken(GMAIL_OAUTH2_CLIENT_ID, GMAIL_OAUTH2_CLIENT_SECRET, config.Gmail.RefreshToken)
-	if err != nil {
-		return fmt.Errorf("failed to fetch the access token: %v", err)
 	}
 
 	var rcpts []string
@@ -136,19 +152,32 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	if len(c.CC) > 0 {
 		ccheader = fmt.Sprintf("CC: %s\r\n", c.CC)
 	}
-	msg := []byte(fmt.Sprintf(
+	rawMsg := []byte(fmt.Sprintf(
 		"%s%sFrom: %s\r\nSubject: %s\r\n\r\n%s\r\n",
 		toheader, ccheader, c.From, c.Subject, c.Body))
 
-	fmt.Printf("rcpts: %#v\n", rcpts)
-	fmt.Printf("msg: %s\n", string(msg))
-	err = smtp.SendMail(
-		"smtp.gmail.com:587",
-		gmail.XOAuth2Auth(config.Gmail.User, accessToken),
-		c.From,
-		rcpts,
-		msg,
+	oauthConfig := gmailAuthConfig(
+		GMAIL_OAUTH2_CLIENT_ID,
+		GMAIL_OAUTH2_CLIENT_SECRET,
+		-1,
 	)
+
+	tokBuf := bytes.NewBufferString(config.Gmail.Token)
+	tok := &oauth2.Token{}
+	err := json.NewDecoder(tokBuf).Decode(tok)
+	if err != nil {
+		return fmt.Errorf("failed to load token: %v", err)
+	}
+
+	client := oauthConfig.Client(context.Background(), tok)
+	srv, err := gmail.New(client)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve Gmail client: %v", err)
+	}
+
+	msg := gmail.Message{}
+	msg.Raw = base64.StdEncoding.EncodeToString(rawMsg)
+	_, err = srv.Users.Messages.Send("me", &msg).Do()
 	if err != nil {
 		return fmt.Errorf("failed to send mail message: %v", err)
 	}
@@ -156,18 +185,26 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	return nil
 }
 
-func (c gmailAuthCmd) Run(global globalCmd) error {
+func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
+
+	var argClientID, argCLientSecret string
+	if len(args) >= 2 {
+		argClientID = args[0]
+		argCLientSecret = args[1]
+	}
 
 	//
 	// prepare
 	//
 
 	GMAIL_OAUTH2_CLIENT_ID = firstNonEmpty(
+		argClientID,
 		config.Gmail.ClientID,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_ID"),
 		GMAIL_OAUTH2_CLIENT_ID)
 	GMAIL_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		argCLientSecret,
 		config.Gmail.ClientSecret,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
 		GMAIL_OAUTH2_CLIENT_SECRET)
@@ -179,16 +216,18 @@ func (c gmailAuthCmd) Run(global globalCmd) error {
 		return nil
 	}
 
-	redirectURI := fmt.Sprintf("http://localhost:%d/", c.Port)
-
-	gm := gmail.New()
+	oauthConfig := gmailAuthConfig(
+		GMAIL_OAUTH2_CLIENT_ID,
+		GMAIL_OAUTH2_CLIENT_SECRET,
+		c.Port,
+	)
 
 	//
 	// fetch the authentication code
 	//
-	authURI := gm.GetAuthURI(GMAIL_OAUTH2_CLIENT_ID, gmail.OAUTH2_SCOPE, redirectURI)
-	if err := browser.OpenURL(authURI); err != nil {
-		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
+	authURL := oauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	if err := browser.OpenURL(authURL); err != nil {
+		return fmt.Errorf("failed to open the authURI(%s): %v", authURL, err)
 	}
 
 	resultChan := make(chan string)
@@ -199,28 +238,17 @@ func (c gmailAuthCmd) Run(global globalCmd) error {
 		return fmt.Errorf("failed or timed out fetching an authentication code")
 	}
 
-	//
-	// fetch the refresh token
-	//
-	refreshToken, err := gm.FetchRefreshToken(GMAIL_OAUTH2_CLIENT_ID, GMAIL_OAUTH2_CLIENT_SECRET, authCode, redirectURI)
+	tok, err := oauthConfig.Exchange(context.TODO(), authCode)
 	if err != nil {
-		return fmt.Errorf("failed or timed out fetching the refresh token: %v", err)
+		return fmt.Errorf("Unable to retrieve token from web: %v", err)
 	}
 
-	//
-	// store the token to the config file.
-	//
-	config.Gmail.RefreshToken = refreshToken
+	tokBuf := bytes.Buffer{}
+	json.NewEncoder(&tokBuf).Encode(tok)
+	config.Gmail.Token = tokBuf.String()
 
-	accessToken, err := gm.FetchAccessToken(GMAIL_OAUTH2_CLIENT_ID, GMAIL_OAUTH2_CLIENT_SECRET, refreshToken)
-	if err != nil {
-		return fmt.Errorf("failed to fetch the access token: %v", err)
-	}
-	addr, err := gm.EmailAddress(accessToken)
-	if err != nil {
-		return fmt.Errorf("failed to fetch the email address: %v", err)
-	}
-	config.Gmail.User = addr
+	config.Gmail.ClientID = GMAIL_OAUTH2_CLIENT_ID
+	config.Gmail.ClientSecret = GMAIL_OAUTH2_CLIENT_SECRET
 
 	saveConfig(config, global.Config)
 
