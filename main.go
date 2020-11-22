@@ -21,13 +21,13 @@ type globalCmd struct {
 }
 
 var (
-	g_app = gli.NewWith(&globalCmd{})
+	gApp = gli.NewWith(&globalCmd{})
 )
 
 func main() {
-	g_app.Name = "xn"
-	g_app.Desc = "multi-way notification sender tool"
-	g_app.Usage = `
+	gApp.Name = "xn"
+	gApp.Desc = "multi-way notification sender tool"
+	gApp.Usage = `
 # Slack
 # auth
 xn slack auth
@@ -39,9 +39,9 @@ xn slack send testtesttest
 # about 'send'
 xn slack  help  send
     `
-	g_app.Version = Version
-	g_app.Copyright = "(C) 2020 Shuhei Kubota"
-	if err := g_app.Run(os.Args); err != nil {
+	gApp.Version = Version
+	gApp.Copyright = "(C) 2020 Shuhei Kubota"
+	if err := gApp.Run(os.Args); err != nil {
 		os.Exit(1)
 	}
 
@@ -49,5 +49,5 @@ xn slack  help  send
 }
 
 func appendCommand(ptrSt interface{}, names, help string) {
-	g_app.AddExtraCommand(ptrSt, names, help)
+	gApp.AddExtraCommand(ptrSt, names, help)
 }
