@@ -1,8 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -11,7 +15,6 @@ import (
 	req "github.com/mitsuse/pushbullet-go/requests"
 	"github.com/pkg/browser"
 
-	"github.com/shu-go/xn/client/pushbullet"
 	"github.com/shu-go/xn/minredir"
 )
 
@@ -115,12 +118,10 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 
 	redirectURI := fmt.Sprintf("http://localhost:%d/", c.Port)
 
-	pb := pushbullet.New()
-
 	//
 	// fetch the authentication code
 	//
-	authURI := pb.GetAuthURI(pushbulletOAuth2ClientID, redirectURI)
+	authURI := pushbulletAuthURI(pushbulletOAuth2ClientID, redirectURI)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
@@ -136,7 +137,7 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the refresh token
 	//
-	accessToken, err := pb.FetchAccessToken(pushbulletOAuth2ClientID, pushbulletOAuth2ClientSecret, authCode)
+	accessToken, err := pushbulletFetchAccessToken(pushbulletOAuth2ClientID, pushbulletOAuth2ClientSecret, authCode)
 	if err != nil {
 		return fmt.Errorf("failed or timed out fetching the access token: %v", err)
 	}
@@ -153,4 +154,50 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 
 func init() {
 	appendCommand(&pbCmd{}, "pushbullet, pb", "")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func pushbulletAuthURI(clientID, redirectURI string) string {
+	const (
+		oauth2AuthBaseURL = "https://www.pushbullet.com/authorize"
+	)
+
+	form := url.Values{}
+	form.Add("client_id", clientID)
+	form.Add("redirect_uri", redirectURI)
+	form.Add("response_type", "code")
+	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
+}
+
+func pushbulletFetchAccessToken(clientID, clientSecret, authCode string) (string, error) {
+	const (
+		oauth2TokenBaseURL = "https://api.pushbullet.com/oauth2/token"
+	)
+
+	form := url.Values{}
+	form.Add("grant_type", "authorization_code")
+	form.Add("client_id", clientID)
+	form.Add("client_secret", clientSecret)
+	form.Add("code", authCode)
+
+	resp, err := http.PostForm(oauth2TokenBaseURL, form)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	dec := json.NewDecoder(resp.Body)
+	t := oauth2AuthedTokens{}
+	err = dec.Decode(&t)
+	if err == io.EOF {
+		return "", fmt.Errorf("auth response from the server is empty")
+	} else if err != nil {
+		return "", err
+	}
+	return t.AccessToken, nil
+}
+
+type oauth2AuthedTokens struct {
+	AccessToken string `json:"access_token"`
 }
