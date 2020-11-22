@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/andrew-d/go-termutil"
+	"github.com/shu-go/gli"
 	"github.com/shu-go/xn/charconv"
 )
 
@@ -25,7 +26,9 @@ var (
 type teamsSendCmd struct {
 	_ struct{} `help:"send a notification"`
 
-	Text string
+	Text  string
+	Title string
+	Facts gli.Map `cli:"fact"`
 }
 
 type teamsAuthCmd struct {
@@ -99,8 +102,46 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	body := &bytes.Buffer{}
-	fmt.Fprintf(body, `{"text":%q}`, c.Text)
+
+	if c.Title == "" {
+		fmt.Fprintf(body, `{"text":%q}`, c.Text)
+	} else {
+		ff := ""
+		for k, v := range c.Facts {
+			if ff != "" {
+				ff += ","
+			}
+			ff += fmt.Sprintf(`{"name":%q,"value":%q}`, k, v)
+		}
+		if ff != "" {
+			ff = "{facts:[" + ff + "]},"
+		}
+
+		fmt.Fprintf(body, `{
+    "@type": "MessageCard",
+    "@context": "http://schema.org/extensions",
+    "themeColor": "0076D7",
+    "title": %[1]q,
+    "summary": %[1]q,
+    "sections": [
+        %[3]s
+        { "text": %[2]q }
+    ]
+}`,
+			c.Title, c.Text, ff)
+	}
+
 	_, err := http.Post(config.Teams.WebhookURL, "application/json", body)
+	if err != nil {
+		return nil
+	}
+
+	/*
+		buf, _ := ioutil.ReadAll(response.Body)
+		println(string(buf))
+		response.Body.Close()
+	*/
+
 	return err
 }
 
