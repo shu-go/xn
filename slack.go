@@ -142,7 +142,7 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURI := sl.GetAuthURI(SlackOAuth2ClientID, slack.OAUTH2_SCOPE, redirectURI)
+	authURI := sl.GetAuthURI(SlackOAuth2ClientID, redirectURI)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}

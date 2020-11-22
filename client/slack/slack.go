@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	OAUTH2_SCOPE = "chat:write:bot channels:read"
+	oauth2Scope = "chat:write:bot channels:read"
 
-	OAUTH2_AUTH_BASE_URL  = "https://slack.com/oauth/authorize"
-	OAUTH2_TOKEN_BASE_URL = "https://slack.com/api/oauth.access"
+	oauth2AuthBaseURL  = "https://slack.com/oauth/authorize"
+	oauth2TokenBaseURL = "https://slack.com/api/oauth.access"
 )
 
 type Slack struct {
@@ -22,10 +22,10 @@ func New() *Slack {
 	return &Slack{}
 }
 
-func (g *Slack) GetAuthURI(clientID, scope, redirectURI string, optTeamAndState ...string) string {
+func (g *Slack) GetAuthURI(clientID, redirectURI string, optTeamAndState ...string) string {
 	form := url.Values{}
 	form.Add("client_id", clientID)
-	form.Add("scope", scope)
+	form.Add("scope", oauth2Scope)
 	form.Add("redirect_uri", redirectURI)
 	if len(optTeamAndState) >= 1 {
 		form.Add("team", optTeamAndState[0])
@@ -33,7 +33,7 @@ func (g *Slack) GetAuthURI(clientID, scope, redirectURI string, optTeamAndState 
 	if len(optTeamAndState) >= 2 {
 		form.Add("state", optTeamAndState[1])
 	}
-	return fmt.Sprintf("%s?%s", OAUTH2_AUTH_BASE_URL, form.Encode())
+	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
 }
 
 func (g *Slack) FetchAccessToken(clientID, clientSecret, authCode, redirectURI string) (string, error) {
@@ -43,7 +43,7 @@ func (g *Slack) FetchAccessToken(clientID, clientSecret, authCode, redirectURI s
 	form.Add("code", authCode)
 	form.Add("redirect_uri", redirectURI)
 
-	resp, err := http.PostForm(OAUTH2_TOKEN_BASE_URL, form)
+	resp, err := http.PostForm(oauth2TokenBaseURL, form)
 	if err != nil {
 		return "", err
 	}
