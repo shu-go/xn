@@ -26,6 +26,9 @@ type config struct {
 		ClientSecret string `toml:"ClientSecret,omitempty"`
 		AccessToken  string `toml:"AccessToken,omitempty"`
 	}
+	Teams struct {
+		WebhookURL string `toml:"WebhookURL,omitempty"`
+	}
 	Mailgun struct {
 		PublicAPIKey  string `toml:"PublicAPIKey,omitempty"`
 		PrivateAPIKey string `toml:"PrivateAPIKey,omitempty"`

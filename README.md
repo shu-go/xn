@@ -15,6 +15,7 @@ Sub commands:
   growl, gr       notify by Growl(GNTP)
   pushbullet, pb  notify by Pushbullet
   slack, sl       notify by slack
+  teams, tm       notify by Microsoft Teams
 
 Options:
   --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./xn.conf or EXE_PATH/xn.conf)
