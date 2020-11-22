@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	GMAIL_OAUTH2_CLIENT_ID     string = ""
-	GMAIL_OAUTH2_CLIENT_SECRET string = ""
+	GmailOAuth2ClientID     string = ""
+	GmailOAuth2ClientSecret string = ""
 )
 
 type gmailCmd struct {
@@ -50,8 +50,8 @@ func gmailAuthConfig(clientID, clientSecret string, port int) oauth2.Config {
 	redirectURL := fmt.Sprintf("http://localhost:%d/", port)
 
 	return oauth2.Config{
-		ClientID:     GMAIL_OAUTH2_CLIENT_ID,
-		ClientSecret: GMAIL_OAUTH2_CLIENT_SECRET,
+		ClientID:     GmailOAuth2ClientID,
+		ClientSecret: GmailOAuth2ClientSecret,
 		Endpoint: oauth2.Endpoint{
 			AuthURL:   "https://accounts.google.com/o/oauth2/auth",
 			TokenURL:  "https://oauth2.googleapis.com/token",
@@ -70,16 +70,16 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	// prepare
 	//
 
-	GMAIL_OAUTH2_CLIENT_ID = firstNonEmpty(
+	GmailOAuth2ClientID = firstNonEmpty(
 		config.Gmail.ClientID,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_ID"),
-		GMAIL_OAUTH2_CLIENT_ID)
-	GMAIL_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		GmailOAuth2ClientID)
+	GmailOAuth2ClientSecret = firstNonEmpty(
 		config.Gmail.ClientSecret,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
-		GMAIL_OAUTH2_CLIENT_SECRET)
+		GmailOAuth2ClientSecret)
 
-	if config.Gmail.Token == "" || GMAIL_OAUTH2_CLIENT_ID == "" || GMAIL_OAUTH2_CLIENT_SECRET == "" {
+	if config.Gmail.Token == "" || GmailOAuth2ClientID == "" || GmailOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
 		return nil
@@ -157,8 +157,8 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		toheader, ccheader, c.From, c.Subject, c.Body))
 
 	oauthConfig := gmailAuthConfig(
-		GMAIL_OAUTH2_CLIENT_ID,
-		GMAIL_OAUTH2_CLIENT_SECRET,
+		GmailOAuth2ClientID,
+		GmailOAuth2ClientSecret,
 		-1,
 	)
 
@@ -198,18 +198,18 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	// prepare
 	//
 
-	GMAIL_OAUTH2_CLIENT_ID = firstNonEmpty(
+	GmailOAuth2ClientID = firstNonEmpty(
 		argClientID,
 		config.Gmail.ClientID,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_ID"),
-		GMAIL_OAUTH2_CLIENT_ID)
-	GMAIL_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		GmailOAuth2ClientID)
+	GmailOAuth2ClientSecret = firstNonEmpty(
 		argCLientSecret,
 		config.Gmail.ClientSecret,
 		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
-		GMAIL_OAUTH2_CLIENT_SECRET)
+		GmailOAuth2ClientSecret)
 
-	if GMAIL_OAUTH2_CLIENT_ID == "" || GMAIL_OAUTH2_CLIENT_SECRET == "" {
+	if GmailOAuth2ClientID == "" || GmailOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
 		browser.OpenURL("https://console.developers.google.com/apis/credentials")
@@ -217,8 +217,8 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	oauthConfig := gmailAuthConfig(
-		GMAIL_OAUTH2_CLIENT_ID,
-		GMAIL_OAUTH2_CLIENT_SECRET,
+		GmailOAuth2ClientID,
+		GmailOAuth2ClientSecret,
 		c.Port,
 	)
 
@@ -247,8 +247,8 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	json.NewEncoder(&tokBuf).Encode(tok)
 	config.Gmail.Token = tokBuf.String()
 
-	config.Gmail.ClientID = GMAIL_OAUTH2_CLIENT_ID
-	config.Gmail.ClientSecret = GMAIL_OAUTH2_CLIENT_SECRET
+	config.Gmail.ClientID = GmailOAuth2ClientID
+	config.Gmail.ClientSecret = GmailOAuth2ClientSecret
 
 	saveConfig(config, global.Config)
 
