@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	OAUTH2_AUTH_BASE_URL  = "https://www.pushbullet.com/authorize"
-	OAUTH2_TOKEN_BASE_URL = "https://api.pushbullet.com/oauth2/token"
+	oauth2AuthBaseURL  = "https://www.pushbullet.com/authorize"
+	oauth2TokenBaseURL = "https://api.pushbullet.com/oauth2/token"
 )
 
 type Pushbullet struct {
@@ -25,7 +25,7 @@ func (g *Pushbullet) GetAuthURI(clientID, redirectURI string) string {
 	form.Add("client_id", clientID)
 	form.Add("redirect_uri", redirectURI)
 	form.Add("response_type", "code")
-	return fmt.Sprintf("%s?%s", OAUTH2_AUTH_BASE_URL, form.Encode())
+	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
 }
 
 func (g *Pushbullet) FetchAccessToken(clientID, clientSecret, authCode string) (string, error) {
@@ -35,14 +35,14 @@ func (g *Pushbullet) FetchAccessToken(clientID, clientSecret, authCode string) (
 	form.Add("client_secret", clientSecret)
 	form.Add("code", authCode)
 
-	resp, err := http.PostForm(OAUTH2_TOKEN_BASE_URL, form)
+	resp, err := http.PostForm(oauth2TokenBaseURL, form)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
-	t := OAuth2AuthedTokens{}
+	t := oauth2AuthedTokens{}
 	err = dec.Decode(&t)
 	if err == io.EOF {
 		return "", fmt.Errorf("auth response from the server is empty")
@@ -52,6 +52,6 @@ func (g *Pushbullet) FetchAccessToken(clientID, clientSecret, authCode string) (
 	return t.AccessToken, nil
 }
 
-type OAuth2AuthedTokens struct {
+type oauth2AuthedTokens struct {
 	AccessToken string `json:"access_token"`
 }
