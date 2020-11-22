@@ -31,7 +31,7 @@ type slackCmd struct {
 }
 
 type slackSendCmd struct {
-	Chan   string `default:"general", help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
+	Chan   string `default:"general"  help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
 	User   string `help:"user name"`
 	Icon   string `help:"message icon"`
 	Text   string `help:"message text, or in arguments"`
