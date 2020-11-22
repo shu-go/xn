@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	SLACK_OAUTH2_CLIENT_ID     string = ""
-	SLACK_OAUTH2_CLIENT_SECRET string = ""
+	SlackOAuth2ClientID     string = ""
+	SlackOAuth2ClientSecret string = ""
 )
 
 type slackCmd struct {
@@ -117,18 +117,18 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// prepare
 	//
-	SLACK_OAUTH2_CLIENT_ID = firstNonEmpty(
+	SlackOAuth2ClientID = firstNonEmpty(
 		argClientID,
 		config.Slack.ClientID,
 		os.Getenv("SLACK_OAUTH2_CLIENT_ID"),
-		SLACK_OAUTH2_CLIENT_ID)
-	SLACK_OAUTH2_CLIENT_SECRET = firstNonEmpty(
+		SlackOAuth2ClientID)
+	SlackOAuth2ClientSecret = firstNonEmpty(
 		argCLientSecret,
 		config.Slack.ClientSecret,
 		os.Getenv("SLACK_OAUTH2_CLIENT_SECRET"),
-		SLACK_OAUTH2_CLIENT_SECRET)
+		SlackOAuth2ClientSecret)
 
-	if SLACK_OAUTH2_CLIENT_ID == "" || SLACK_OAUTH2_CLIENT_SECRET == "" {
+	if SlackOAuth2ClientID == "" || SlackOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both SLACK_OAUTH2_CLIENT_ID and SLACK_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://api.slack.com/apps\n")
 		browser.OpenURL("https://api.slack.com/apps")
@@ -142,7 +142,7 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURI := sl.GetAuthURI(SLACK_OAUTH2_CLIENT_ID, slack.OAUTH2_SCOPE, redirectURI)
+	authURI := sl.GetAuthURI(SlackOAuth2ClientID, slack.OAUTH2_SCOPE, redirectURI)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
@@ -158,7 +158,7 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the access token
 	//
-	accessToken, err := sl.FetchAccessToken(SLACK_OAUTH2_CLIENT_ID, SLACK_OAUTH2_CLIENT_SECRET, authCode, redirectURI)
+	accessToken, err := sl.FetchAccessToken(SlackOAuth2ClientID, SlackOAuth2ClientSecret, authCode, redirectURI)
 	if err != nil {
 		return fmt.Errorf("failed or timed out fetching the refresh token: %v", err)
 	}
