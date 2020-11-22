@@ -1,8 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -12,7 +16,6 @@ import (
 
 	"github.com/shu-go/rog"
 	"github.com/shu-go/xn/charconv"
-	"github.com/shu-go/xn/client/slack"
 	"github.com/shu-go/xn/minredir"
 )
 
@@ -137,12 +140,10 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 
 	redirectURI := fmt.Sprintf("http://localhost:%d/", c.Port)
 
-	sl := slack.New()
-
 	//
 	// fetch the authentication code
 	//
-	authURI := sl.GetAuthURI(slackOAuth2ClientID, redirectURI)
+	authURI := slackAuthURI(slackOAuth2ClientID, redirectURI)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
@@ -158,7 +159,7 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the access token
 	//
-	accessToken, err := sl.FetchAccessToken(slackOAuth2ClientID, slackOAuth2ClientSecret, authCode, redirectURI)
+	accessToken, err := slackFetchAccessToken(slackOAuth2ClientID, slackOAuth2ClientSecret, authCode, redirectURI)
 	if err != nil {
 		return fmt.Errorf("failed or timed out fetching the refresh token: %v", err)
 	}
@@ -175,4 +176,57 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 func init() {
 	rog.Debug("slack init")
 	appendCommand(&slackCmd{}, "slack, sl", "")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func slackAuthURI(clientID, redirectURI string, optTeamAndState ...string) string {
+	const (
+		oauth2Scope       = "chat:write:bot channels:read"
+		oauth2AuthBaseURL = "https://slack.com/oauth/authorize"
+	)
+
+	form := url.Values{}
+	form.Add("client_id", clientID)
+	form.Add("scope", oauth2Scope)
+	form.Add("redirect_uri", redirectURI)
+	if len(optTeamAndState) >= 1 {
+		form.Add("team", optTeamAndState[0])
+	}
+	if len(optTeamAndState) >= 2 {
+		form.Add("state", optTeamAndState[1])
+	}
+	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
+}
+
+func slackFetchAccessToken(clientID, clientSecret, authCode, redirectURI string) (string, error) {
+	const (
+		oauth2TokenBaseURL = "https://slack.com/api/oauth.access"
+	)
+
+	form := url.Values{}
+	form.Add("client_id", clientID)
+	form.Add("client_secret", clientSecret)
+	form.Add("code", authCode)
+	form.Add("redirect_uri", redirectURI)
+
+	resp, err := http.PostForm(oauth2TokenBaseURL, form)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	dec := json.NewDecoder(resp.Body)
+	t := slackOAuth2AuthedTokens{}
+	err = dec.Decode(&t)
+	if err == io.EOF {
+		return "", fmt.Errorf("auth response from the server is empty")
+	} else if err != nil {
+		return "", err
+	}
+	return t.AccessToken, nil
+}
+
+type slackOAuth2AuthedTokens struct {
+	AccessToken string `json:"access_token"`
 }
