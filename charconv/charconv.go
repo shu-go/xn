@@ -9,6 +9,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// Convert detects char encoding and converts data as result and encname.
 func Convert(data []byte) (result, encname string, err error) {
 	if len(data) == 0 {
 		return "", "", nil

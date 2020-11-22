@@ -5,12 +5,14 @@ import (
 	"net/http"
 )
 
+// CodeOAuth2Extractor exitracts `code` from OAuth2 HTTP response.
 func CodeOAuth2Extractor(r *http.Request, resultChan chan string) bool {
 	code := r.FormValue("code")
 	resultChan <- code
 	return (code != "")
 }
 
+// LaunchMinServer launches temporal HTTP server.
 func LaunchMinServer(port int, extractor func(r *http.Request, resultChan chan string) bool, resultChan chan string) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		ok := extractor(r, resultChan)
