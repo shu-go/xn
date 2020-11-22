@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	PushbulletOAuth2ClientID     string = ""
-	PushbulletOAuth2ClientSecret string = ""
+	pushbulletOAuth2ClientID     string = ""
+	pushbulletOAuth2ClientSecret string = ""
 )
 
 type pbCmd struct {
@@ -95,18 +95,18 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// prepare
 	//
-	PushbulletOAuth2ClientID = firstNonEmpty(
+	pushbulletOAuth2ClientID = firstNonEmpty(
 		argClientID,
 		config.Pushbullet.ClientID,
 		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_ID"),
-		PushbulletOAuth2ClientID)
-	PushbulletOAuth2ClientSecret = firstNonEmpty(
+		pushbulletOAuth2ClientID)
+	pushbulletOAuth2ClientSecret = firstNonEmpty(
 		argCLientSecret,
 		config.Pushbullet.ClientSecret,
 		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_SECRET"),
-		PushbulletOAuth2ClientSecret)
+		pushbulletOAuth2ClientSecret)
 
-	if PushbulletOAuth2ClientID == "" || PushbulletOAuth2ClientSecret == "" {
+	if pushbulletOAuth2ClientID == "" || pushbulletOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both PUSHBULLET_OAUTH2_CLIENT_ID and PUSHBULLET_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://www.pushbullet.com/#settings/clients\n")
 		browser.OpenURL("https://www.pushbullet.com/#settings/clients")
@@ -120,7 +120,7 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURI := pb.GetAuthURI(PushbulletOAuth2ClientID, redirectURI)
+	authURI := pb.GetAuthURI(pushbulletOAuth2ClientID, redirectURI)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
@@ -136,7 +136,7 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the refresh token
 	//
-	accessToken, err := pb.FetchAccessToken(PushbulletOAuth2ClientID, PushbulletOAuth2ClientSecret, authCode)
+	accessToken, err := pb.FetchAccessToken(pushbulletOAuth2ClientID, pushbulletOAuth2ClientSecret, authCode)
 	if err != nil {
 		return fmt.Errorf("failed or timed out fetching the access token: %v", err)
 	}
