@@ -90,6 +90,7 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 			File:     c.Upload,
 			Channels: []string{c.Chan},
 			Title:    c.Text,
+			Filename: c.Text,
 		}
 		_, err := sl.UploadFile(upparams)
 		if err != nil {
