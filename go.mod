@@ -9,8 +9,8 @@ require (
 	github.com/mitsuse/pushbullet-go v0.1.0
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
-	github.com/shu-go/gli v0.0.0-20201028095719-e47e397df60e
-	github.com/shu-go/rog v0.0.0-20190826055139-09f31aeaaebd
+	github.com/shu-go/gli v1.5.2
+	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.7.2
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	golang.org/x/text v0.3.4
