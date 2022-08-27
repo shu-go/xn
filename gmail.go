@@ -17,7 +17,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
 
-	"github.com/shu-go/xn/minredir"
+	"github.com/shu-go/minredir"
 )
 
 var (
@@ -47,7 +47,7 @@ type gmailAuthCmd struct {
 }
 
 func gmailAuthConfig(clientID, clientSecret string, port int) oauth2.Config {
-	redirectURL := fmt.Sprintf("http://localhost:%d/", port)
+	redirectURL := fmt.Sprintf("https://localhost:%d/", port)
 
 	return oauth2.Config{
 		ClientID:     gmailOAuth2ClientID,
@@ -231,11 +231,19 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	resultChan := make(chan string)
-	go minredir.LaunchMinServer(c.Port, minredir.CodeOAuth2Extractor, resultChan)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
+	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
 
 	authCode := waitForStringChan(resultChan, time.Duration(c.Timeout)*time.Second)
+	cancel()
+
 	if authCode == "" {
-		return fmt.Errorf("failed or timed out fetching an authentication code")
+		select {
+		case err = <-errChan:
+		default:
+			err = nil
+		}
+		return fmt.Errorf("failed or timed out fetching an authentication code: %w", err)
 	}
 
 	tok, err := oauthConfig.Exchange(context.TODO(), authCode)

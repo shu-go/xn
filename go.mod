@@ -10,6 +10,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/shu-go/gli v1.5.5
+	github.com/shu-go/minredir v0.0.0-20220827031800-425d9f0c076a
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.11.2
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094

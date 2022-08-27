@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,9 +15,9 @@ import (
 	"github.com/pkg/browser"
 	api "github.com/slack-go/slack"
 
+	"github.com/shu-go/minredir"
 	"github.com/shu-go/rog"
 	"github.com/shu-go/xn/charconv"
-	"github.com/shu-go/xn/minredir"
 )
 
 var (
@@ -139,7 +140,7 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 		return nil
 	}
 
-	redirectURI := fmt.Sprintf("http://localhost:%d/", c.Port)
+	redirectURI := fmt.Sprintf("https://localhost:%d/", c.Port)
 
 	//
 	// fetch the authentication code
@@ -150,11 +151,19 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	resultChan := make(chan string)
-	go minredir.LaunchMinServer(c.Port, minredir.CodeOAuth2Extractor, resultChan)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
+	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
 
 	authCode := waitForStringChan(resultChan, time.Duration(c.Timeout)*time.Second)
+	cancel()
+
 	if authCode == "" {
-		return fmt.Errorf("failed or timed out fetching an authentication code")
+		select {
+		case err = <-errChan:
+		default:
+			err = nil
+		}
+		return fmt.Errorf("failed or timed out fetching an authentication code: %w", err)
 	}
 
 	//
