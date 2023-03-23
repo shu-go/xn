@@ -14,7 +14,7 @@ require (
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.11.2
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.3.8
 	google.golang.org/api v0.94.0
 )
 
