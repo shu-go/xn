@@ -14,7 +14,7 @@ require (
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.11.2
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.7.0
 	google.golang.org/api v0.94.0
 )
 
@@ -31,8 +31,8 @@ require (
 	github.com/rivo/uniseg v0.3.4 // indirect
 	github.com/shu-go/cliparser v0.2.1 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b // indirect
-	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc // indirect
 	google.golang.org/grpc v1.49.0 // indirect
