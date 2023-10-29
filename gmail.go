@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"mime"
-	"net/mail"
 	"os"
 	"time"
 
@@ -109,39 +108,6 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	if len(c.Body) == 0 {
 		return nil
-	}
-
-	var rcpts []string
-	{
-		if len(c.To) > 0 {
-			toaddrs, err := mail.ParseAddressList(c.To)
-			if err != nil {
-				return fmt.Errorf("failed to parse --to: %v", err)
-			}
-			for _, a := range toaddrs {
-				rcpts = append(rcpts, a.Address)
-			}
-		}
-
-		if len(c.CC) > 0 {
-			ccaddrs, err := mail.ParseAddressList(c.CC)
-			if err != nil {
-				return fmt.Errorf("failed to parse --cc: %v", err)
-			}
-			for _, a := range ccaddrs {
-				rcpts = append(rcpts, a.Address)
-			}
-		}
-
-		if len(c.BCC) > 0 {
-			bccaddrs, err := mail.ParseAddressList(c.BCC)
-			if err != nil {
-				return fmt.Errorf("failed to parse --bcc: %v", err)
-			}
-			for _, a := range bccaddrs {
-				rcpts = append(rcpts, a.Address)
-			}
-		}
 	}
 
 	var toheader string
