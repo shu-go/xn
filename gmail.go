@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"os"
 	"time"
@@ -88,7 +88,7 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	c.Subject = mime.BEncoding.Encode("UTF-8", c.Subject)
 
 	if !termutil.Isatty(os.Stdin.Fd()) {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			bytes = []byte{}
 		}
