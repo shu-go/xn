@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/browser"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/option"
 
 	"github.com/shu-go/minredir"
 )
@@ -37,6 +38,8 @@ type gmailSendCmd struct {
 	CC      string `help:"CC addresses(comma-separated)"`
 	BCC     string `help:"BCC addresses(comma-separated)"`
 	Body    string `help:"BODY"`
+
+	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) sending a message. < 0 is infinite."`
 }
 
 type gmailAuthCmd struct {
@@ -139,9 +142,11 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		return fmt.Errorf("failed to load token: %v", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
 	client := oauthConfig.Client(context.Background(), tok)
-	srv, err := gmail.New(client)
+	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
+		cancel()
 		return fmt.Errorf("Unable to retrieve Gmail client: %v", err)
 	}
 
@@ -149,8 +154,11 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	msg.Raw = base64.StdEncoding.EncodeToString(rawMsg)
 	_, err = srv.Users.Messages.Send("me", &msg).Do()
 	if err != nil {
+		cancel()
 		return fmt.Errorf("failed to send mail message: %v", err)
 	}
+
+	cancel()
 
 	return nil
 }
