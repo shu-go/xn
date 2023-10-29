@@ -118,9 +118,13 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	if len(c.CC) > 0 {
 		ccheader = fmt.Sprintf("CC: %s\r\n", c.CC)
 	}
+	var bccheader string
+	if len(c.BCC) > 0 {
+		bccheader = fmt.Sprintf("BCC: %s\r\n", c.BCC)
+	}
 	rawMsg := []byte(fmt.Sprintf(
-		"%s%sFrom: %s\r\nSubject: %s\r\n\r\n%s\r\n",
-		toheader, ccheader, c.From, c.Subject, c.Body))
+		"%s%s%sFrom: %s\r\nSubject: %s\r\n\r\n%s\r\n",
+		toheader, ccheader, bccheader, c.From, c.Subject, c.Body))
 
 	oauthConfig := gmailAuthConfig(
 		gmailOAuth2ClientID,
