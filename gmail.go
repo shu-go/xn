@@ -178,8 +178,7 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	if gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
-		browser.OpenURL("https://console.developers.google.com/apis/credentials")
-		return nil
+		return browser.OpenURL("https://console.developers.google.com/apis/credentials")
 	}
 
 	oauthConfig := gmailAuthConfig(
@@ -199,6 +198,10 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	resultChan := make(chan string)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
 	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
+	if err != nil {
+		cancel()
+		return err
+	}
 
 	authCode := waitForStringChan(resultChan, time.Duration(c.Timeout)*time.Second)
 	cancel()
@@ -218,15 +221,15 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	tokBuf := bytes.Buffer{}
-	json.NewEncoder(&tokBuf).Encode(tok)
+	if err := json.NewEncoder(&tokBuf).Encode(tok); err != nil {
+		return err
+	}
 	config.Gmail.Token = tokBuf.String()
 
 	config.Gmail.ClientID = gmailOAuth2ClientID
 	config.Gmail.ClientSecret = gmailOAuth2ClientSecret
 
-	saveConfig(config, global.Config)
-
-	return nil
+	return saveConfig(config, global.Config)
 }
 
 func init() {
