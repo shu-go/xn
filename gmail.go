@@ -1,5 +1,7 @@
 package main
 
+//go:generate go install github.com/shu-go/nmfmt/cmd/nmfmtfmt@latest
+//go:generate nmfmtfmt gmail.go
 import (
 	"bytes"
 	"context"
@@ -18,6 +20,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/shu-go/minredir"
+	"github.com/shu-go/nmfmt"
 )
 
 var (
@@ -125,9 +128,17 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	if len(c.BCC) > 0 {
 		bccheader = fmt.Sprintf("BCC: %s\r\n", c.BCC)
 	}
-	rawMsg := []byte(fmt.Sprintf(
-		"%s%s%sFrom: %s\r\nSubject: %s\r\n\r\n%s\r\n",
-		toheader, ccheader, bccheader, c.From, c.Subject, c.Body))
+	type M map[string]any
+	rawMsg := []byte(nmfmt.Sprintf(
+		"${To}${CC}${BCC}From: ${From}\r\nSubject: ${Subject}\r\n\r\n${Body}\r\n",
+		nmfmt.M{
+			"To":      toheader,
+			"CC":      ccheader,
+			"BCC":     bccheader,
+			"From":    c.From,
+			"Subject": c.Subject,
+			"Body":    c.Body,
+		}))
 
 	oauthConfig := gmailAuthConfig(
 		gmailOAuth2ClientID,

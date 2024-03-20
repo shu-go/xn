@@ -1,6 +1,8 @@
 module github.com/shu-go/xn
 
-go 1.19
+go 1.21
+
+toolchain go1.22.0
 
 require (
 	github.com/BurntSushi/toml v1.2.1
@@ -11,6 +13,7 @@ require (
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 	github.com/shu-go/gli v1.5.7
 	github.com/shu-go/minredir v0.0.0-20220827031800-425d9f0c076a
+	github.com/shu-go/nmfmt v0.2.2
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.12.2
 	golang.org/x/oauth2 v0.7.0
@@ -28,7 +31,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
-	github.com/mattn/go-runewidth v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/shu-go/cliparser v0.2.2 // indirect
