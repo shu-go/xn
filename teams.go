@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/andrew-d/go-termutil"
-	"github.com/shu-go/gli"
 	"github.com/shu-go/xn/charconv"
 )
 
@@ -26,15 +26,13 @@ var (
 type teamsSendCmd struct {
 	_ struct{} `help:"send a notification"`
 
-	Text  string
-	Title string
-	Facts gli.Map `cli:"fact"`
+	Text string
 }
 
 type teamsAuthCmd struct {
 	_ struct{} `help:"authenticate"`
 
-	WebhookURL string `cli:"url=INCOMING_WEBHOOK_URL"  help:"Incoming Webhook URL of your channel"`
+	WebhookURL string `cli:"url=INCOMING_WEBHOOK_URL"  help:"Workflows Webhook URL of your channel"`
 }
 
 func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
@@ -55,7 +53,7 @@ func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
 		teamsWebhookURL)
 
 	if teamsWebhookURL == "" {
-		fmt.Fprintf(os.Stderr, "Incoming Webhook URL is required.\n")
+		fmt.Fprintf(os.Stderr, "Workflows Webhook URL is required.\n")
 		return nil
 	}
 
@@ -97,39 +95,30 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
 		}
 	}
 
+	c.Text = strings.ReplaceAll(c.Text, "\\n", "\n")
+
 	if len(c.Text) == 0 {
 		return nil
 	}
 
 	body := &bytes.Buffer{}
-
-	if c.Title == "" {
-		fmt.Fprintf(body, `{"text":%q}`, c.Text)
-	} else {
-		ff := ""
-		for k, v := range c.Facts {
-			if ff != "" {
-				ff += ","
-			}
-			ff += fmt.Sprintf(`{"name":%q,"value":%q}`, k, v)
-		}
-		if ff != "" {
-			ff = "{facts:[" + ff + "]},"
-		}
-
-		fmt.Fprintf(body, `{
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    "themeColor": "0076D7",
-    "title": %[1]q,
-    "summary": %[1]q,
-    "sections": [
-        %[3]s
-        { "text": %[2]q }
+	fmt.Fprintf(body, `{
+    "type": "message",
+    "attachments":[
+        {
+            "contentType":"application/vnd.microsoft.card.adaptive",
+            "contentUrl":null,
+            "content":{
+                "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
+                "type":"AdaptiveCard",
+                "version":"1.4",
+                "body":[
+                    { "type": "TextBlock", "wrap": true, "text": %q }
+                ]
+            }
+        }
     ]
-}`,
-			c.Title, c.Text, ff)
-	}
+}`, c.Text)
 
 	_, err := http.Post(config.Teams.WebhookURL, "application/json", body)
 	if err != nil {
