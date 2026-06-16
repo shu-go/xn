@@ -13,6 +13,7 @@ import (
 
 	"github.com/andrew-d/go-termutil"
 	"github.com/pkg/browser"
+	"github.com/slack-go/slack"
 	api "github.com/slack-go/slack"
 
 	"github.com/shu-go/minredir"
@@ -86,16 +87,35 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	sl := api.New(config.Slack.AccessToken)
+
+	ctx := context.Background()
+	chanID, err := slackGetChannelID(ctx, sl, c.Chan)
+	if err != nil {
+		return fmt.Errorf("get channel id of %s: %w", c.Chan, err)
+	}
+
 	if c.Upload != "" {
-		upparams := api.FileUploadParameters{
-			File:     c.Upload,
-			Channels: []string{c.Chan},
-			Title:    c.Text,
-			Filename: c.Text,
-		}
-		_, err := sl.UploadFile(upparams)
+		fileInfo, err := os.Stat(c.Upload)
 		if err != nil {
-			return fmt.Errorf("failed to upload file %v: %v", c.Upload, err)
+			return fmt.Errorf("failed to stat file %v: %v", c.Upload, err)
+		}
+		fileSize := fileInfo.Size()
+
+		f, err := os.Open(c.Upload)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %w", c.Upload, err)
+		}
+		defer f.Close()
+
+		_, err = sl.UploadFileContext(ctx, slack.UploadFileParameters{
+			FileSize: int(fileSize),
+			Reader:   f,
+			Filename: c.Upload,
+			Title:    c.Text,
+			Channel:  chanID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to upload %s: %w", c.Upload, err)
 		}
 	} else {
 		_, _, err := sl.PostMessage("#"+c.Chan,
@@ -192,7 +212,7 @@ func init() {
 
 func slackAuthURI(clientID, redirectURI string, optTeamAndState ...string) string {
 	const (
-		oauth2Scope       = "chat:write:bot channels:read"
+		oauth2Scope       = "chat:write:bot channels:read groups:read"
 		oauth2AuthBaseURL = "https://slack.com/oauth/authorize"
 	)
 
@@ -239,4 +259,30 @@ func slackFetchAccessToken(clientID, clientSecret, authCode, redirectURI string)
 
 type slackOAuth2AuthedTokens struct {
 	AccessToken string `json:"access_token"`
+}
+
+func slackGetChannelID(ctx context.Context, client *slack.Client, name string) (string, error) {
+	cursor := ""
+	for {
+		channels, nextCursor, err := client.GetConversations(&slack.GetConversationsParameters{
+			Cursor: cursor,
+			Types:  []string{"public_channel", "private_channel"},
+		})
+		if err != nil {
+			return "", fmt.Errorf("get conversations: %w", err)
+		}
+
+		for _, ch := range channels {
+			if ch.Name == name {
+				return ch.ID, nil
+			}
+		}
+
+		if nextCursor == "" {
+			break
+		}
+		cursor = nextCursor
+	}
+
+	return "", nil
 }

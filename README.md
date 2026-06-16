@@ -26,6 +26,7 @@ Usage:
   xn slack auth
     1. go to https://api.slack.com/apps
     2. make a new app
+       - note that in "OAuth & Permissions", add https://localhost:7878/ to Redirected URLs and push Save URLs.
     3. xn slack auth CLIENT_ID CLIENT_SECRET
   # send
   xn slack send testtesttest
