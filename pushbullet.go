@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+
 	"net/http"
 	"net/url"
 	"os"
@@ -61,7 +61,7 @@ func (c pbSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	if !termutil.Isatty(os.Stdin.Fd()) {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			bytes = []byte{}
 		}

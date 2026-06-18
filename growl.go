@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
+
 	"os"
 
 	"github.com/andrew-d/go-termutil"
@@ -35,7 +36,7 @@ func (c growlSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	if !termutil.Isatty(os.Stdin.Fd()) {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			bytes = []byte{}
 		}

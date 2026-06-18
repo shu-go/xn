@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+
 	"os"
 	"path/filepath"
 
@@ -83,5 +83,5 @@ func saveConfig(config *config, filePath string) error {
 	if err := toml.NewEncoder(buf).Encode(config); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filePath, buf.Bytes(), 0700)
+	return os.WriteFile(filePath, buf.Bytes(), 0700)
 }

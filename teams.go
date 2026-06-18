@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
+
 	"net/http"
 	"os"
 	"strings"
@@ -78,7 +79,7 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	if !termutil.Isatty(os.Stdin.Fd()) {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			bytes = []byte{}
 		}

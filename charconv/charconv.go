@@ -2,7 +2,7 @@ package charconv
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 
 	"github.com/saintfish/chardet"
 	"golang.org/x/text/encoding/japanese"
@@ -23,7 +23,7 @@ func Convert(data []byte) (result, encname string, err error) {
 
 	switch detresult.Charset {
 	case "Shift_JIS":
-		decoded, err := ioutil.ReadAll(transform.NewReader(bytes.NewBuffer(data), japanese.ShiftJIS.NewDecoder()))
+		decoded, err := io.ReadAll(transform.NewReader(bytes.NewBuffer(data), japanese.ShiftJIS.NewDecoder()))
 		if err != nil {
 			return "", "", err
 		}

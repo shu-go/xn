@@ -48,6 +48,6 @@ xn slack  help  send
 	return
 }
 
-func appendCommand(ptrSt interface{}, names, help string) {
+func appendCommand(ptrSt any, names, help string) {
 	gApp.AddExtraCommand(ptrSt, names, help)
 }
