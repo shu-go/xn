@@ -29,6 +29,9 @@ type config struct {
 	Teams struct {
 		WebhookURL string `toml:"WebhookURL,omitempty"`
 	}
+	Discord struct {
+		WebhookURL string `toml:"WebhookURL,omitempty"`
+	}
 	Mailgun struct {
 		PublicAPIKey  string `toml:"PublicAPIKey,omitempty"`
 		PrivateAPIKey string `toml:"PrivateAPIKey,omitempty"`
