@@ -33,11 +33,12 @@ type slackCmd struct {
 }
 
 type slackSendCmd struct {
-	Chan   string `default:"general"  help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
-	User   string `help:"user name"`
-	Icon   string `help:"message icon"`
-	Text   string `help:"message text, or in arguments"`
-	Upload string `help:"filename"`
+	Chan     string `default:"general"  help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
+	User     string `help:"user name"`
+	Icon     string `help:"message icon"`
+	Text     string `help:"message text, or in arguments"`
+	Upload   string `help:"filename"`
+	Markdown bool   `cli:"markdown,md" default:"true"`
 }
 
 type slackAuthCmd struct {
@@ -118,10 +119,17 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 			return fmt.Errorf("failed to upload %s: %w", c.Upload, err)
 		}
 	} else {
-		_, _, err := sl.PostMessage("#"+c.Chan,
-			api.MsgOptionText(c.Text, true),
+		opts := []api.MsgOption{
 			api.MsgOptionUsername(c.User),
-			api.MsgOptionIconEmoji(c.Icon))
+			api.MsgOptionIconEmoji(c.Icon),
+		}
+		if c.Markdown {
+			opts = append(opts, api.MsgOptionMarkdownText(c.Text))
+		} else {
+			opts = append(opts, api.MsgOptionText(c.Text, true))
+		}
+
+		_, _, err := sl.PostMessage("#"+c.Chan, opts...)
 		if err != nil {
 			return fmt.Errorf("failed to post to #%v: %v", c.Chan, err)
 		}
