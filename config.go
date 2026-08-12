@@ -14,7 +14,7 @@ type config struct {
 	Gmail struct {
 		ClientID     string `toml:"ClientID,omitempty"`
 		ClientSecret string `toml:"ClientSecret,omitempty"`
-		Token        string `toml:Token,omitempty`
+		Token        string `toml:"Token,omitempty"`
 	}
 	Slack struct {
 		ClientID     string `toml:"ClientID,omitempty"`
