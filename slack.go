@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/andrew-d/go-termutil"
@@ -33,12 +34,12 @@ type slackCmd struct {
 }
 
 type slackSendCmd struct {
-	Chan     string `default:"general"  help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
-	User     string `help:"user name"`
-	Icon     string `help:"message icon"`
-	Text     string `help:"message text, or in arguments"`
-	Upload   string `help:"filename"`
-	Markdown bool   `cli:"markdown,md" default:"true"`
+	Chan     string   `default:"general"  help:"channel or group name (sub-match, posting to all matching channels and groups, no #)"`
+	User     string   `help:"user name"`
+	Icon     string   `help:"message icon"`
+	Text     string   `help:"message text, or in arguments"`
+	Upload   []string `help:"filenames to upload (comma-separated or repeatable)"`
+	Markdown bool     `cli:"markdown,md" default:"true"`
 }
 
 type slackAuthCmd struct {
@@ -83,7 +84,7 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 		}
 	}
 
-	if len(c.Text) == 0 {
+	if len(c.Text) == 0 && len(c.Upload) == 0 {
 		return nil
 	}
 
@@ -95,28 +96,48 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 		return fmt.Errorf("get channel id of %s: %w", c.Chan, err)
 	}
 
-	if c.Upload != "" {
-		fileInfo, err := os.Stat(c.Upload)
-		if err != nil {
-			return fmt.Errorf("failed to stat file %v: %v", c.Upload, err)
-		}
-		fileSize := fileInfo.Size()
+	if len(c.Upload) > 0 {
+		var files []slack.FileSummary
+		for _, upload := range c.Upload {
+			fileInfo, err := os.Stat(upload)
+			if err != nil {
+				return fmt.Errorf("failed to stat file %v: %v", upload, err)
+			}
 
-		f, err := os.Open(c.Upload)
-		if err != nil {
-			return fmt.Errorf("failed to open %s: %w", c.Upload, err)
-		}
-		defer f.Close()
+			f, err := os.Open(upload)
+			if err != nil {
+				return fmt.Errorf("failed to open %s: %w", upload, err)
+			}
 
-		_, err = sl.UploadFileContext(ctx, slack.UploadFileParameters{
-			FileSize: int(fileSize),
-			Reader:   f,
-			Filename: c.Upload,
-			Title:    c.Text,
-			Channel:  chanID,
+			u, err := sl.GetUploadURLExternalContext(ctx, slack.GetUploadURLExternalParameters{
+				FileName: filepath.Base(upload),
+				FileSize: int(fileInfo.Size()),
+			})
+			if err != nil {
+				f.Close()
+				return fmt.Errorf("failed to get upload URL for %s: %w", upload, err)
+			}
+
+			err = sl.UploadToURL(ctx, slack.UploadToURLParameters{
+				UploadURL: u.UploadURL,
+				Reader:    f,
+				Filename:  filepath.Base(upload),
+			})
+			f.Close()
+			if err != nil {
+				return fmt.Errorf("failed to upload %s: %w", upload, err)
+			}
+
+			files = append(files, slack.FileSummary{ID: u.FileID, Title: filepath.Base(upload)})
+		}
+
+		_, err := sl.CompleteUploadExternalContext(ctx, slack.CompleteUploadExternalParameters{
+			Files:          files,
+			Channel:        chanID,
+			InitialComment: c.Text,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to upload %s: %w", c.Upload, err)
+			return fmt.Errorf("failed to complete upload: %w", err)
 		}
 	} else {
 		opts := []api.MsgOption{
