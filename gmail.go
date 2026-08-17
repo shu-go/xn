@@ -1,7 +1,5 @@
 package main
 
-//go:generate go install github.com/shu-go/nmfmt/cmd/nmfmtfmt@latest
-//go:generate nmfmtfmt gmail.go
 import (
 	"bytes"
 	"context"
@@ -10,7 +8,10 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
+	"net/textproto"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/andrew-d/go-termutil"
@@ -20,7 +21,6 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/shu-go/minredir"
-	"github.com/shu-go/nmfmt"
 )
 
 var (
@@ -35,12 +35,13 @@ type gmailCmd struct {
 }
 
 type gmailSendCmd struct {
-	Subject string `help:"SUBJECT"`
-	From    string `help:"FROM address (empty means the authenticated user)"`
-	To      string `help:"TO addresses(comma-separated)"`
-	CC      string `help:"CC addresses(comma-separated)"`
-	BCC     string `help:"BCC addresses(comma-separated)"`
-	Body    string `help:"BODY"`
+	Subject string   `help:"SUBJECT"`
+	From    string   `help:"FROM address (empty means the authenticated user)"`
+	To      string   `help:"TO addresses(comma-separated)"`
+	CC      string   `help:"CC addresses(comma-separated)"`
+	BCC     string   `help:"BCC addresses(comma-separated)"`
+	Body    string   `help:"BODY"`
+	Attach  []string `help:"filenames to attach (comma-separated or repeatable)"`
 
 	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) sending a message. < 0 is infinite."`
 }
@@ -112,33 +113,14 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		c.Body += b
 	}
 
-	if len(c.Body) == 0 {
+	if len(c.Body) == 0 && len(c.Attach) == 0 {
 		return nil
 	}
 
-	var toheader string
-	if len(c.To) > 0 {
-		toheader = fmt.Sprintf("To: %s\r\n", c.To)
+	rawMsg, err := gmailBuildRawMessage(c.To, c.CC, c.BCC, c.From, c.Subject, c.Body, c.Attach)
+	if err != nil {
+		return fmt.Errorf("failed to build message: %w", err)
 	}
-	var ccheader string
-	if len(c.CC) > 0 {
-		ccheader = fmt.Sprintf("CC: %s\r\n", c.CC)
-	}
-	var bccheader string
-	if len(c.BCC) > 0 {
-		bccheader = fmt.Sprintf("BCC: %s\r\n", c.BCC)
-	}
-	type M map[string]any
-	rawMsg := []byte(nmfmt.Sprintf(
-		"${To}${CC}${BCC}From: ${From}\r\nSubject: ${Subject}\r\n\r\n${Body}\r\n",
-		nmfmt.M{
-			"To":      toheader,
-			"CC":      ccheader,
-			"BCC":     bccheader,
-			"From":    c.From,
-			"Subject": c.Subject,
-			"Body":    c.Body,
-		}))
 
 	oauthConfig := gmailAuthConfig(
 		gmailOAuth2ClientID,
@@ -148,7 +130,7 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	tokBuf := bytes.NewBufferString(config.Gmail.Token)
 	tok := &oauth2.Token{}
-	err := json.NewDecoder(tokBuf).Decode(tok)
+	err = json.NewDecoder(tokBuf).Decode(tok)
 	if err != nil {
 		return fmt.Errorf("failed to load token: %v", err)
 	}
@@ -172,6 +154,107 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	cancel()
 
 	return nil
+}
+
+// gmailBuildRawMessage builds an RFC 5322 message, using multipart/mixed
+// (with base64-encoded attachment parts) when attachments are given.
+func gmailBuildRawMessage(to, cc, bcc, from, subject, body string, attachments []string) ([]byte, error) {
+	buf := &bytes.Buffer{}
+
+	if to != "" {
+		fmt.Fprintf(buf, "To: %s\r\n", to)
+	}
+	if cc != "" {
+		fmt.Fprintf(buf, "CC: %s\r\n", cc)
+	}
+	if bcc != "" {
+		fmt.Fprintf(buf, "BCC: %s\r\n", bcc)
+	}
+	fmt.Fprintf(buf, "From: %s\r\n", from)
+	fmt.Fprintf(buf, "Subject: %s\r\n", subject)
+	buf.WriteString("MIME-Version: 1.0\r\n")
+
+	if len(attachments) == 0 {
+		buf.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n\r\n")
+		buf.WriteString(body)
+		buf.WriteString("\r\n")
+		return buf.Bytes(), nil
+	}
+
+	mw := multipart.NewWriter(buf)
+	fmt.Fprintf(buf, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", mw.Boundary())
+
+	bodyHeader := textproto.MIMEHeader{}
+	bodyHeader.Set("Content-Type", `text/plain; charset="UTF-8"`)
+	bodyPart, err := mw.CreatePart(bodyHeader)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := bodyPart.Write([]byte(body)); err != nil {
+		return nil, err
+	}
+
+	for _, path := range attachments {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read %s: %w", path, err)
+		}
+
+		ctype := mime.TypeByExtension(filepath.Ext(path))
+		if ctype == "" {
+			ctype = "application/octet-stream"
+		}
+		filename := filepath.Base(path)
+
+		ah := textproto.MIMEHeader{}
+		ah.Set("Content-Type", fmt.Sprintf("%s; name=%q", ctype, filename))
+		ah.Set("Content-Transfer-Encoding", "base64")
+		ah.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+
+		part, err := mw.CreatePart(ah)
+		if err != nil {
+			return nil, err
+		}
+
+		enc := base64.NewEncoder(base64.StdEncoding, &base64LineWriter{w: part})
+		if _, err := enc.Write(data); err != nil {
+			return nil, fmt.Errorf("failed to encode %s: %w", path, err)
+		}
+		if err := enc.Close(); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := mw.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// base64LineWriter wraps base64 output at 76 columns, as conventional for MIME.
+type base64LineWriter struct {
+	w   io.Writer
+	col int
+}
+
+func (b *base64LineWriter) Write(p []byte) (int, error) {
+	written := len(p)
+	for len(p) > 0 {
+		remain := min(76-b.col, len(p))
+		if _, err := b.w.Write(p[:remain]); err != nil {
+			return 0, err
+		}
+		b.col += remain
+		p = p[remain:]
+		if b.col == 76 {
+			if _, err := b.w.Write([]byte("\r\n")); err != nil {
+				return 0, err
+			}
+			b.col = 0
+		}
+	}
+	return written, nil
 }
 
 func (c gmailAuthCmd) Run(global globalCmd, args []string) error {

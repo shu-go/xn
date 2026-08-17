@@ -11,7 +11,6 @@ require (
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 	github.com/shu-go/gli/v2 v2.3.0
 	github.com/shu-go/minredir v0.0.0-20240320020032-057cbad5aae4
-	github.com/shu-go/nmfmt v0.2.2
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.29.0
 	golang.org/x/oauth2 v0.36.0
