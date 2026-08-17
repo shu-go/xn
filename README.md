@@ -1,6 +1,5 @@
 multi-way notification sender tool
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/shu-go/xn)](https://goreportcard.com/report/github.com/shu-go/xn)
 ![MIT License](https://img.shields.io/badge/License-MIT-blue)
 
 # Usage
@@ -11,6 +10,7 @@ multi-way notification sender tool
 xn
 
 Sub commands:
+  discord, dc     notify by Discord
   gmail, gm       notify by gmail
   growl, gr       notify by Growl(GNTP)
   pushbullet, pb  notify by Pushbullet
