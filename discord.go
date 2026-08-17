@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/andrew-d/go-termutil"
 
@@ -23,8 +25,9 @@ type discordCmd struct {
 type discordSendCmd struct {
 	_ struct{} `usage:"message content is the joined positional arguments (and stdin). username is empty by default (Discord shows the webhook's configured name)"`
 
-	User string `help:"user name"`
-	Text string `help:"message text, or in arguments"`
+	User   string   `help:"user name"`
+	Text   string   `help:"message text, or in arguments"`
+	Upload []string `help:"filenames to upload as attachments (comma-separated or repeatable)"`
 }
 
 type discordAuthCmd struct {
@@ -86,7 +89,7 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 		}
 	}
 
-	if len(c.Text) == 0 {
+	if len(c.Text) == 0 && len(c.Upload) == 0 {
 		return nil
 	}
 
@@ -94,15 +97,60 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 		Content  string `json:"content"`
 		Username string `json:"username,omitempty"`
 	}
-	body, err := json.Marshal(discordWebhookPayload{
+	payload := discordWebhookPayload{
 		Content:  c.Text,
 		Username: c.User,
-	})
-	if err != nil {
-		return err
 	}
 
-	resp, err := http.Post(config.Discord.WebhookURL, "application/json", bytes.NewReader(body))
+	var contentType string
+	var body io.Reader
+
+	if len(c.Upload) > 0 {
+		buf := &bytes.Buffer{}
+		w := multipart.NewWriter(buf)
+
+		payloadJSON, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		if err := w.WriteField("payload_json", string(payloadJSON)); err != nil {
+			return err
+		}
+
+		for i, upload := range c.Upload {
+			f, err := os.Open(upload)
+			if err != nil {
+				return fmt.Errorf("failed to open %s: %w", upload, err)
+			}
+
+			part, err := w.CreateFormFile(fmt.Sprintf("files[%d]", i), filepath.Base(upload))
+			if err != nil {
+				f.Close()
+				return err
+			}
+			if _, err := io.Copy(part, f); err != nil {
+				f.Close()
+				return fmt.Errorf("failed to upload %s: %w", upload, err)
+			}
+			f.Close()
+		}
+
+		if err := w.Close(); err != nil {
+			return err
+		}
+
+		contentType = w.FormDataContentType()
+		body = buf
+	} else {
+		jsonBody, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		contentType = "application/json"
+		body = bytes.NewReader(jsonBody)
+	}
+
+	resp, err := http.Post(config.Discord.WebhookURL, contentType, body)
 	if err != nil {
 		return err
 	}
