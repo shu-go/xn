@@ -52,3 +52,17 @@ Sub commands:
 Global Options:
   --conf, --config CONFIG_FILE  load configurations from CONFIG_FILE (default: ./notiphi.conf)
 ```
+
+# env
+
+- `XN_DISCORD_WEBHOOK_URL`
+- `XN_GMAIL_OAUTH2_CLIENT_ID`
+- `XN_GMAIL_OAUTH2_CLIENT_SECRET`: DEPRECATED. Pass the secret via commandline arguments only with the `auth` subcommand.
+- `XN_GMAIL_REFRESH_TOKEN`
+- `XN_PUSHBULLET_ACCESS_TOKEN`
+- `XN_PUSHBULLET_OAUTH2_CLIENT_ID`
+- `XN_PUSHBULLET_OAUTH2_CLIENT_SECRET`: DEPRECATED. Pass the secret via commandline arguments only with the `auth` subcommand.
+- `XN_SLACK_ACCESS_TOKEN`
+- `XN_SLACK_OAUTH2_CLIENT_ID`
+- `XN_SLACK_OAUTH2_CLIENT_SECRET`: DEPRECATED. Pass the secret via commandline arguments only with the `auth` subcommand.
+- `XN_TEAMS_WEBHOOK_URL`
