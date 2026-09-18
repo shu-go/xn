@@ -45,7 +45,7 @@ func (c discordAuthCmd) Run(global globalCmd, args []string) error {
 	webhookURL := firstNonEmpty(
 		argWebhookURL,
 		config.Discord.WebhookURL,
-		os.Getenv("DISCORD_WEBHOOK_URL"))
+		os.Getenv("XN_DISCORD_WEBHOOK_URL"))
 
 	if webhookURL == "" {
 		fmt.Fprintf(os.Stderr, "Webhook URL is required.\n")
@@ -60,7 +60,11 @@ func (c discordAuthCmd) Run(global globalCmd, args []string) error {
 func (c discordSendCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
-	if config.Discord.WebhookURL == "" {
+	webhookURL := firstNonEmpty(
+		config.Discord.WebhookURL,
+		os.Getenv("XN_DISCORD_WEBHOOK_URL"))
+
+	if webhookURL == "" {
 		return fmt.Errorf("auth first")
 	}
 
@@ -150,7 +154,7 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 		body = bytes.NewReader(jsonBody)
 	}
 
-	resp, err := http.Post(config.Discord.WebhookURL, contentType, body)
+	resp, err := http.Post(webhookURL, contentType, body)
 	if err != nil {
 		return err
 	}

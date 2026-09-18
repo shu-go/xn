@@ -20,10 +20,6 @@ type teamsCmd struct {
 	Auth teamsAuthCmd
 }
 
-var (
-	teamsWebhookURL string = ""
-)
-
 type teamsSendCmd struct {
 	_ struct{} `help:"send a notification"`
 
@@ -47,18 +43,17 @@ func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// prepare
 	//
-	teamsWebhookURL = firstNonEmpty(
+	webhookURL := firstNonEmpty(
 		argWebhookURL,
 		config.Teams.WebhookURL,
-		os.Getenv("TEAMS_WEBHOOK_URL"),
-		teamsWebhookURL)
+		os.Getenv("XN_TEAMS_WEBHOOK_URL"))
 
-	if teamsWebhookURL == "" {
+	if webhookURL == "" {
 		fmt.Fprintf(os.Stderr, "Workflows Webhook URL is required.\n")
 		return nil
 	}
 
-	config.Teams.WebhookURL = teamsWebhookURL
+	config.Teams.WebhookURL = webhookURL
 	saveConfig(config, global.Config)
 
 	return nil
@@ -67,7 +62,11 @@ func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
 func (c teamsSendCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
-	if config.Teams.WebhookURL == "" {
+	webhookURL := firstNonEmpty(
+		config.Teams.WebhookURL,
+		os.Getenv("XN_TEAMS_WEBHOOK_URL"))
+
+	if webhookURL == "" {
 		return fmt.Errorf("auth first")
 	}
 
@@ -121,7 +120,7 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
     ]
 }`, c.Text)
 
-	_, err := http.Post(config.Teams.WebhookURL, "application/json", body)
+	_, err := http.Post(webhookURL, "application/json", body)
 	if err != nil {
 		return nil
 	}
