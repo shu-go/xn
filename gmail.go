@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
+	"net/http"
 	"net/textproto"
 	"os"
 	"path/filepath"
@@ -76,18 +77,24 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 	// prepare
 	//
 
+	refreshToken := os.Getenv("XN_GMAIL_REFRESH_TOKEN")
+
 	gmailOAuth2ClientID = firstNonEmpty(
 		config.Gmail.ClientID,
-		os.Getenv("GMAIL_OAUTH2_CLIENT_ID"),
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"),
 		gmailOAuth2ClientID)
 	gmailOAuth2ClientSecret = firstNonEmpty(
 		config.Gmail.ClientSecret,
-		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"),
 		gmailOAuth2ClientSecret)
 
-	if config.Gmail.Token == "" || gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" {
-		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
-		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
+	if gmailOAuth2ClientID == "" {
+		fmt.Fprintf(os.Stderr, "either XN_GMAIL_ACCESS_TOKEN, or XN_GMAIL_OAUTH2_CLIENT_ID and XN_GMAIL_REFRESH_TOKEN must be given.\n")
+		fmt.Fprintf(os.Stderr, "auth first")
+		return nil
+	}
+	if refreshToken == "" && config.Gmail.Token == "" {
+		fmt.Fprintf(os.Stderr, "auth first")
 		return nil
 	}
 
@@ -122,21 +129,27 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		return fmt.Errorf("failed to build message: %w", err)
 	}
 
+	var client *http.Client
 	oauthConfig := gmailAuthConfig(
 		gmailOAuth2ClientID,
 		gmailOAuth2ClientSecret,
 		-1,
 	)
 
-	tokBuf := bytes.NewBufferString(config.Gmail.Token)
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(tokBuf).Decode(tok)
-	if err != nil {
-		return fmt.Errorf("failed to load token: %v", err)
+	var tok *oauth2.Token
+	if refreshToken != "" {
+		tok = &oauth2.Token{RefreshToken: refreshToken}
+	} else {
+		tok = &oauth2.Token{}
+		tokBuf := bytes.NewBufferString(config.Gmail.Token)
+		if err = json.NewDecoder(tokBuf).Decode(tok); err != nil {
+			return fmt.Errorf("failed to load token: %v", err)
+		}
 	}
 
+	client = oauthConfig.Client(context.Background(), tok)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
-	client := oauthConfig.Client(context.Background(), tok)
 	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		cancel()
@@ -273,12 +286,12 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	gmailOAuth2ClientID = firstNonEmpty(
 		argClientID,
 		config.Gmail.ClientID,
-		os.Getenv("GMAIL_OAUTH2_CLIENT_ID"),
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"),
 		gmailOAuth2ClientID)
 	gmailOAuth2ClientSecret = firstNonEmpty(
 		argCLientSecret,
 		config.Gmail.ClientSecret,
-		os.Getenv("GMAIL_OAUTH2_CLIENT_SECRET"),
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"),
 		gmailOAuth2ClientSecret)
 
 	if gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" {
@@ -333,7 +346,9 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	config.Gmail.Token = tokBuf.String()
 
 	config.Gmail.ClientID = gmailOAuth2ClientID
-	config.Gmail.ClientSecret = gmailOAuth2ClientSecret
+	// Do not write the client secret received via command-line arguments or
+	// environment variables to the configuration file.
+	config.Gmail.ClientSecret = config.Gmail.ClientSecret //gmailOAuth2ClientSecret
 
 	return saveConfig(config, global.Config)
 }
