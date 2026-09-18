@@ -19,11 +19,6 @@ import (
 	"github.com/shu-go/minredir"
 )
 
-var (
-	pushbulletOAuth2ClientID     string = ""
-	pushbulletOAuth2ClientSecret string = ""
-)
-
 type pbCmd struct {
 	_ struct{} `help:"notify by Pushbullet"`
 
@@ -45,7 +40,11 @@ type pbAuthCmd struct {
 func (c pbSendCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
-	if config.Pushbullet.AccessToken == "" {
+	accessToken := firstNonEmpty(
+		config.Pushbullet.AccessToken,
+		os.Getenv("XN_PUSHBULLET_ACCESS_TOKEN"))
+
+	if accessToken == "" {
 		return fmt.Errorf("auth first")
 	}
 
@@ -76,7 +75,7 @@ func (c pbSendCmd) Run(global globalCmd, args []string) error {
 		return nil
 	}
 
-	pb := api.New(config.Pushbullet.AccessToken)
+	pb := api.New(accessToken)
 	n := req.NewNote()
 	n.Title = c.Title
 	n.Body = c.Body
@@ -99,16 +98,14 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// prepare
 	//
-	pushbulletOAuth2ClientID = firstNonEmpty(
+	pushbulletOAuth2ClientID := firstNonEmpty(
 		argClientID,
 		config.Pushbullet.ClientID,
-		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_ID"),
-		pushbulletOAuth2ClientID)
-	pushbulletOAuth2ClientSecret = firstNonEmpty(
+		os.Getenv("XN_PUSHBULLET_OAUTH2_CLIENT_ID"))
+	pushbulletOAuth2ClientSecret := firstNonEmpty(
 		argCLientSecret,
 		config.Pushbullet.ClientSecret,
-		os.Getenv("PUSHBULLET_OAUTH2_CLIENT_SECRET"),
-		pushbulletOAuth2ClientSecret)
+		os.Getenv("XN_PUSHBULLET_OAUTH2_CLIENT_SECRET"))
 
 	if pushbulletOAuth2ClientID == "" || pushbulletOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both PUSHBULLET_OAUTH2_CLIENT_ID and PUSHBULLET_OAUTH2_CLIENT_SECRET must be given.\n")

@@ -22,11 +22,6 @@ import (
 	"github.com/shu-go/xn/charconv"
 )
 
-var (
-	slackOAuth2ClientID     string = ""
-	slackOAuth2ClientSecret string = ""
-)
-
 type slackCmd struct {
 	_    struct{}     `help:"notify by slack"`
 	Send slackSendCmd `help:"send a notification"`
@@ -51,7 +46,11 @@ type slackAuthCmd struct {
 func (c slackSendCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
-	if config.Slack.AccessToken == "" {
+	accessToken := firstNonEmpty(
+		config.Teams.WebhookURL,
+		os.Getenv("XN_SLACK_ACCESS_TOKEN"))
+
+	if accessToken == "" {
 		return fmt.Errorf("auth first")
 	}
 
@@ -88,7 +87,7 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 		return nil
 	}
 
-	sl := api.New(config.Slack.AccessToken)
+	sl := api.New(accessToken)
 
 	ctx := context.Background()
 	chanID, err := slackGetChannelID(ctx, sl, c.Chan)
@@ -171,16 +170,14 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// prepare
 	//
-	slackOAuth2ClientID = firstNonEmpty(
+	slackOAuth2ClientID := firstNonEmpty(
 		argClientID,
 		config.Slack.ClientID,
-		os.Getenv("SLACK_OAUTH2_CLIENT_ID"),
-		slackOAuth2ClientID)
-	slackOAuth2ClientSecret = firstNonEmpty(
+		os.Getenv("XN_SLACK_OAUTH2_CLIENT_ID"))
+	slackOAuth2ClientSecret := firstNonEmpty(
 		argCLientSecret,
 		config.Slack.ClientSecret,
-		os.Getenv("SLACK_OAUTH2_CLIENT_SECRET"),
-		slackOAuth2ClientSecret)
+		os.Getenv("XN_SLACK_OAUTH2_CLIENT_SECRET"))
 
 	if slackOAuth2ClientID == "" || slackOAuth2ClientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both SLACK_OAUTH2_CLIENT_ID and SLACK_OAUTH2_CLIENT_SECRET must be given.\n")
