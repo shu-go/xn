@@ -12,7 +12,6 @@ xn
 Sub commands:
   discord, dc     notify by Discord
   gmail, gm       notify by gmail
-  growl, gr       notify by Growl(GNTP)
   pushbullet, pb  notify by Pushbullet
   slack, sl       notify by slack
   teams, tm       notify by Microsoft Teams
