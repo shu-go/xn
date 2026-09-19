@@ -191,14 +191,23 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURI := slackAuthURI(slackOAuth2ClientID, redirectURI)
+	state, err := minredir.GenerateState()
+	if err != nil {
+		return fmt.Errorf("failed to generate state: %w", err)
+	}
+
+	authURI := slackAuthURI(slackOAuth2ClientID, redirectURI, state)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
 
 	resultChan := make(chan string)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
-	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
+	errChan, err := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan, minredir.State(state))
+	if err != nil {
+		cancel()
+		return err
+	}
 
 	authCode := waitForStringChan(resultChan, time.Duration(c.Timeout)*time.Second)
 	cancel()
@@ -242,7 +251,7 @@ func init() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func slackAuthURI(clientID, redirectURI string, optTeamAndState ...string) string {
+func slackAuthURI(clientID, redirectURI, state string) string {
 	const (
 		oauth2Scope       = "chat:write:bot channels:read groups:read"
 		oauth2AuthBaseURL = "https://slack.com/oauth/authorize"
@@ -252,12 +261,7 @@ func slackAuthURI(clientID, redirectURI string, optTeamAndState ...string) strin
 	form.Add("client_id", clientID)
 	form.Add("scope", oauth2Scope)
 	form.Add("redirect_uri", redirectURI)
-	if len(optTeamAndState) >= 1 {
-		form.Add("team", optTeamAndState[0])
-	}
-	if len(optTeamAndState) >= 2 {
-		form.Add("state", optTeamAndState[1])
-	}
+	form.Add("state", state)
 	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
 }
 

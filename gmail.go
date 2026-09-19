@@ -320,14 +320,19 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURL := oauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	state, err := minredir.GenerateState()
+	if err != nil {
+		return fmt.Errorf("failed to generate state: %w", err)
+	}
+
+	authURL := oauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	if err := browser.OpenURL(authURL); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURL, err)
 	}
 
 	resultChan := make(chan string)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
-	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
+	errChan, err := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan, minredir.State(state))
 	if err != nil {
 		cancel()
 		return err
@@ -357,6 +362,7 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	if !credsFromConfigFile {
 		printSetEnvInstead(
 			[2]string{"XN_GMAIL_OAUTH2_CLIENT_ID", gmailOAuth2ClientID},
+			[2]string{"XN_GMAIL_OAUTH2_CLIENT_SECRET", gmailOAuth2ClientSecret},
 			[2]string{"XN_GMAIL_REFRESH_TOKEN", tok.RefreshToken},
 		)
 		return nil

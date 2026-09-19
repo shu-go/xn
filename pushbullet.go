@@ -119,14 +119,23 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	//
 	// fetch the authentication code
 	//
-	authURI := pushbulletAuthURI(pushbulletOAuth2ClientID, redirectURI)
+	state, err := minredir.GenerateState()
+	if err != nil {
+		return fmt.Errorf("failed to generate state: %w", err)
+	}
+
+	authURI := pushbulletAuthURI(pushbulletOAuth2ClientID, redirectURI, state)
 	if err := browser.OpenURL(authURI); err != nil {
 		return fmt.Errorf("failed to open the authURI(%s): %v", authURI, err)
 	}
 
 	resultChan := make(chan string)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
-	err, errChan := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan)
+	errChan, err := minredir.ServeTLS(ctx, fmt.Sprintf(":%v", c.Port), resultChan, minredir.State(state))
+	if err != nil {
+		cancel()
+		return err
+	}
 
 	authCode := waitForStringChan(resultChan, time.Duration(c.Timeout)*time.Second)
 	cancel()
@@ -169,7 +178,7 @@ func init() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-func pushbulletAuthURI(clientID, redirectURI string) string {
+func pushbulletAuthURI(clientID, redirectURI, state string) string {
 	const (
 		oauth2AuthBaseURL = "https://www.pushbullet.com/authorize"
 	)
@@ -178,6 +187,7 @@ func pushbulletAuthURI(clientID, redirectURI string) string {
 	form.Add("client_id", clientID)
 	form.Add("redirect_uri", redirectURI)
 	form.Add("response_type", "code")
+	form.Add("state", state)
 	return fmt.Sprintf("%s?%s", oauth2AuthBaseURL, form.Encode())
 }
 

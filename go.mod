@@ -5,12 +5,11 @@ go 1.27.1
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2
-	github.com/mattn/go-gntp v0.0.0-20200109101910-88aa4ee0ab11
 	github.com/mitsuse/pushbullet-go v0.1.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 	github.com/shu-go/gli/v2 v2.3.0
-	github.com/shu-go/minredir v0.0.0-20240320020032-057cbad5aae4
+	github.com/shu-go/minredir v0.2.0
 	github.com/shu-go/rog v0.1.0
 	github.com/slack-go/slack v0.29.0
 	golang.org/x/oauth2 v0.37.0
@@ -43,7 +42,7 @@ require (
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260917231906-eeb232e0883d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260918162117-cecb64721679 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
