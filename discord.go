@@ -31,33 +31,12 @@ type discordSendCmd struct {
 }
 
 type discordAuthCmd struct {
-	_ struct{} `help:"authenticate" usage:"1. in Discord, go to Server Settings > Integrations > Webhooks\n2. create a new webhook (or use an existing one) and copy its Webhook URL\n3. xn discord auth WEBHOOK_URL"`
+	_ struct{} `help:"authenticate" usage:"1. in Discord, go to Server Settings > Integrations > Webhooks\n2. create a new webhook (or use an existing one) and copy its Webhook URL\n3. set it via the XN_DISCORD_WEBHOOK_URL environment variable"`
 }
 
 func (c discordAuthCmd) Run(global globalCmd, args []string) error {
-	config, _ := loadConfig(global.Config)
-
-	var argWebhookURL string
-	if len(args) >= 1 {
-		argWebhookURL = args[0]
-	}
-
-	webhookURL := firstNonEmpty(
-		argWebhookURL,
-		config.Discord.WebhookURL,
-		os.Getenv("XN_DISCORD_WEBHOOK_URL"))
-
-	if webhookURL == "" {
-		fmt.Fprintf(os.Stderr, "Webhook URL is required.\n")
-		fmt.Fprintf(os.Stderr, "go to Server Settings > Integrations > Webhooks in Discord and create/copy one.\n")
-		return nil
-	}
-	if err := requireHTTPS(webhookURL); err != nil {
-		return err
-	}
-
-	config.Discord.WebhookURL = webhookURL
-	return saveConfig(config, global.Config)
+	printSetEnvInstead([2]string{"XN_DISCORD_WEBHOOK_URL", "<your webhook url>"})
+	return nil
 }
 
 func (c discordSendCmd) Run(global globalCmd, args []string) error {

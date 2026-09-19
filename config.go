@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 
 	"os"
 	"path/filepath"
@@ -66,17 +65,13 @@ func determineConfigPath(defaultValue string) string {
 func loadConfig(filePath string) (*config, error) {
 	filePath = determineConfigPath(filePath)
 
-	config := &config{}
-	_, err := toml.DecodeFile(filePath, config)
+	cfg := &config{}
+	_, err := toml.DecodeFile(filePath, cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "missing %v. -> creating with minimal contents...", filePath)
-		if err := saveConfig(config, filePath); err != nil {
-			return config, fmt.Errorf("failed to access to config: %v", err)
-		}
-		fmt.Fprintf(os.Stderr, "created.\n")
+		cfg = &config{}
 	}
 
-	return config, nil
+	return cfg, nil
 }
 
 func saveConfig(config *config, filePath string) error {
@@ -86,5 +81,5 @@ func saveConfig(config *config, filePath string) error {
 	if err := toml.NewEncoder(buf).Encode(config); err != nil {
 		return err
 	}
-	return os.WriteFile(filePath, buf.Bytes(), 0700)
+	return os.WriteFile(filePath, buf.Bytes(), 0600)
 }

@@ -149,13 +149,18 @@ func (c pbAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	//
-	// store the token to the config file.
+	// store the token to the config file, but only if the client credentials
+	// used to obtain it were themselves loaded from the config file.
 	//
+	credsFromConfigFile := valueFromConfigFile(argClientID, config.Pushbullet.ClientID) &&
+		valueFromConfigFile(argCLientSecret, config.Pushbullet.ClientSecret)
+	if !credsFromConfigFile {
+		printSetEnvInstead([2]string{"XN_PUSHBULLET_ACCESS_TOKEN", accessToken})
+		return nil
+	}
+
 	config.Pushbullet.AccessToken = accessToken
-	saveConfig(config, global.Config)
-
-	return nil
-
+	return saveConfig(config, global.Config)
 }
 
 func init() {

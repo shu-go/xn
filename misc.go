@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -24,6 +25,14 @@ func firstNonEmpty(strs ...string) string {
 	return ""
 }
 
+// valueFromConfigFile reports whether a value resolved by
+// firstNonEmpty(argValue, fileValue, envValue) actually came from the config
+// file, i.e. no higher-precedence CLI argument was given and the config file
+// did hold a value.
+func valueFromConfigFile(argValue, fileValue string) bool {
+	return argValue == "" && fileValue != ""
+}
+
 // requireHTTPS rejects a webhook URL that does not use https, since the URL
 // itself carries a secret token that must not be sent over plain HTTP.
 func requireHTTPS(webhookURL string) error {
@@ -31,4 +40,17 @@ func requireHTTPS(webhookURL string) error {
 		return fmt.Errorf("webhook URL must use https")
 	}
 	return nil
+}
+
+// printSetEnvInstead tells the user to set environment variables rather than
+// having a freshly obtained token written to the (plaintext) config file.
+// It is used when the credentials used to obtain the token did not
+// themselves come from the config file, so the user is deliberately keeping
+// secrets out of it.
+func printSetEnvInstead(pairs ...[2]string) {
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, "set the following environment variable(s) instead:")
+	for _, p := range pairs {
+		fmt.Fprintf(os.Stdout, "  %s=%s\n", p[0], p[1])
+	}
 }

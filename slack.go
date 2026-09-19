@@ -221,12 +221,18 @@ func (c slackAuthCmd) Run(global globalCmd, args []string) error {
 	}
 
 	//
-	// store the token to the config file.
+	// store the token to the config file, but only if the client credentials
+	// used to obtain it were themselves loaded from the config file.
 	//
-	config.Slack.AccessToken = accessToken
-	saveConfig(config, global.Config)
+	credsFromConfigFile := valueFromConfigFile(argClientID, config.Slack.ClientID) &&
+		valueFromConfigFile(argCLientSecret, config.Slack.ClientSecret)
+	if !credsFromConfigFile {
+		printSetEnvInstead([2]string{"XN_SLACK_ACCESS_TOKEN", accessToken})
+		return nil
+	}
 
-	return nil
+	config.Slack.AccessToken = accessToken
+	return saveConfig(config, global.Config)
 }
 
 func init() {

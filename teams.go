@@ -27,38 +27,11 @@ type teamsSendCmd struct {
 }
 
 type teamsAuthCmd struct {
-	_ struct{} `help:"authenticate"`
-
-	WebhookURL string `cli:"url=INCOMING_WEBHOOK_URL"  help:"Workflows Webhook URL of your channel"`
+	_ struct{} `help:"authenticate" usage:"xn does not store the Teams webhook URL in the config file; set it via the XN_TEAMS_WEBHOOK_URL environment variable"`
 }
 
 func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
-	config, _ := loadConfig(global.Config)
-
-	var argWebhookURL string
-	if len(args) >= 1 {
-		argWebhookURL = args[0]
-	}
-
-	//
-	// prepare
-	//
-	webhookURL := firstNonEmpty(
-		argWebhookURL,
-		config.Teams.WebhookURL,
-		os.Getenv("XN_TEAMS_WEBHOOK_URL"))
-
-	if webhookURL == "" {
-		fmt.Fprintf(os.Stderr, "Workflows Webhook URL is required.\n")
-		return nil
-	}
-	if err := requireHTTPS(webhookURL); err != nil {
-		return err
-	}
-
-	config.Teams.WebhookURL = webhookURL
-	saveConfig(config, global.Config)
-
+	printSetEnvInstead([2]string{"XN_TEAMS_WEBHOOK_URL", "<your webhook url>"})
 	return nil
 }
 

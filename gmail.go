@@ -88,12 +88,7 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"),
 		gmailOAuth2ClientSecret)
 
-	if gmailOAuth2ClientID == "" {
-		fmt.Fprintf(os.Stderr, "either XN_GMAIL_ACCESS_TOKEN, or XN_GMAIL_OAUTH2_CLIENT_ID and XN_GMAIL_REFRESH_TOKEN must be given.\n")
-		fmt.Fprintf(os.Stderr, "auth first")
-		return nil
-	}
-	if refreshToken == "" && config.Gmail.Token == "" {
+	if gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" || refreshToken == "" && config.Gmail.Token == "" {
 		fmt.Fprintf(os.Stderr, "auth first")
 		return nil
 	}
@@ -283,6 +278,9 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	// prepare
 	//
 
+	credsFromConfigFile := valueFromConfigFile(argClientID, config.Gmail.ClientID) &&
+		valueFromConfigFile(argCLientSecret, config.Gmail.ClientSecret)
+
 	gmailOAuth2ClientID = firstNonEmpty(
 		argClientID,
 		config.Gmail.ClientID,
@@ -337,6 +335,18 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	tok, err := oauthConfig.Exchange(context.TODO(), authCode)
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve token from web: %v", err)
+	}
+
+	// Only persist the newly obtained token to the config file if the client
+	// credentials used to obtain it were themselves loaded from the config
+	// file. Otherwise the user is deliberately keeping credentials out of it
+	// (CLI arg / env var), so hand the token back via stdout instead.
+	if !credsFromConfigFile {
+		printSetEnvInstead(
+			[2]string{"XN_GMAIL_OAUTH2_CLIENT_ID", gmailOAuth2ClientID},
+			[2]string{"XN_GMAIL_REFRESH_TOKEN", tok.RefreshToken},
+		)
+		return nil
 	}
 
 	tokBuf := bytes.Buffer{}
