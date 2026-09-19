@@ -52,6 +52,9 @@ func (c discordAuthCmd) Run(global globalCmd, args []string) error {
 		fmt.Fprintf(os.Stderr, "go to Server Settings > Integrations > Webhooks in Discord and create/copy one.\n")
 		return nil
 	}
+	if err := requireHTTPS(webhookURL); err != nil {
+		return err
+	}
 
 	config.Discord.WebhookURL = webhookURL
 	return saveConfig(config, global.Config)
@@ -66,6 +69,9 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 
 	if webhookURL == "" {
 		return fmt.Errorf("auth first")
+	}
+	if err := requireHTTPS(webhookURL); err != nil {
+		return err
 	}
 
 	for _, v := range args {

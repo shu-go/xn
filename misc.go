@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -20,4 +22,13 @@ func firstNonEmpty(strs ...string) string {
 		}
 	}
 	return ""
+}
+
+// requireHTTPS rejects a webhook URL that does not use https, since the URL
+// itself carries a secret token that must not be sent over plain HTTP.
+func requireHTTPS(webhookURL string) error {
+	if !strings.HasPrefix(webhookURL, "https://") {
+		return fmt.Errorf("webhook URL must use https")
+	}
+	return nil
 }

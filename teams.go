@@ -52,6 +52,9 @@ func (c teamsAuthCmd) Run(global globalCmd, args []string) error {
 		fmt.Fprintf(os.Stderr, "Workflows Webhook URL is required.\n")
 		return nil
 	}
+	if err := requireHTTPS(webhookURL); err != nil {
+		return err
+	}
 
 	config.Teams.WebhookURL = webhookURL
 	saveConfig(config, global.Config)
@@ -68,6 +71,9 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
 
 	if webhookURL == "" {
 		return fmt.Errorf("auth first")
+	}
+	if err := requireHTTPS(webhookURL); err != nil {
+		return err
 	}
 
 	for _, v := range args {
