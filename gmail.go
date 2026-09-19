@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/andrew-d/go-termutil"
@@ -167,6 +168,18 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 // gmailBuildRawMessage builds an RFC 5322 message, using multipart/mixed
 // (with base64-encoded attachment parts) when attachments are given.
 func gmailBuildRawMessage(to, cc, bcc, from, subject, body string, attachments []string) ([]byte, error) {
+	headers := []struct{ name, value string }{
+		{"To", to},
+		{"CC", cc},
+		{"BCC", bcc},
+		{"From", from},
+	}
+	for _, h := range headers {
+		if strings.ContainsAny(h.value, "\r\n") {
+			return nil, fmt.Errorf("%s must not contain CR or LF characters", h.name)
+		}
+	}
+
 	buf := &bytes.Buffer{}
 
 	if to != "" {
