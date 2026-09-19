@@ -25,11 +25,6 @@ import (
 	"github.com/shu-go/minredir"
 )
 
-var (
-	gmailOAuth2ClientID     string = ""
-	gmailOAuth2ClientSecret string = ""
-)
-
 type gmailCmd struct {
 	_    struct{}     `help:"notify by gmail"`
 	Send gmailSendCmd `help:"send a notification"`
@@ -58,8 +53,8 @@ func gmailAuthConfig(clientID, clientSecret string, port int) oauth2.Config {
 	redirectURL := fmt.Sprintf("https://localhost:%d/", port)
 
 	return oauth2.Config{
-		ClientID:     gmailOAuth2ClientID,
-		ClientSecret: gmailOAuth2ClientSecret,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 		Endpoint: oauth2.Endpoint{
 			AuthURL:   "https://accounts.google.com/o/oauth2/auth",
 			TokenURL:  "https://oauth2.googleapis.com/token",
@@ -80,16 +75,14 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	refreshToken := os.Getenv("XN_GMAIL_REFRESH_TOKEN")
 
-	gmailOAuth2ClientID = firstNonEmpty(
+	clientID := firstNonEmpty(
 		config.Gmail.ClientID,
-		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"),
-		gmailOAuth2ClientID)
-	gmailOAuth2ClientSecret = firstNonEmpty(
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"))
+	clientSecret := firstNonEmpty(
 		config.Gmail.ClientSecret,
-		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"),
-		gmailOAuth2ClientSecret)
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"))
 
-	if gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" || refreshToken == "" && config.Gmail.Token == "" {
+	if clientID == "" || clientSecret == "" || refreshToken == "" && config.Gmail.Token == "" {
 		fmt.Fprintf(os.Stderr, "auth first")
 		return nil
 	}
@@ -127,8 +120,8 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	var client *http.Client
 	oauthConfig := gmailAuthConfig(
-		gmailOAuth2ClientID,
-		gmailOAuth2ClientSecret,
+		clientID,
+		clientSecret,
 		-1,
 	)
 
@@ -294,26 +287,24 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	credsFromConfigFile := valueFromConfigFile(argClientID, config.Gmail.ClientID) &&
 		valueFromConfigFile(argCLientSecret, config.Gmail.ClientSecret)
 
-	gmailOAuth2ClientID = firstNonEmpty(
+	clientID := firstNonEmpty(
 		argClientID,
 		config.Gmail.ClientID,
-		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"),
-		gmailOAuth2ClientID)
-	gmailOAuth2ClientSecret = firstNonEmpty(
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_ID"))
+	clientSecret := firstNonEmpty(
 		argCLientSecret,
 		config.Gmail.ClientSecret,
-		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"),
-		gmailOAuth2ClientSecret)
+		os.Getenv("XN_GMAIL_OAUTH2_CLIENT_SECRET"))
 
-	if gmailOAuth2ClientID == "" || gmailOAuth2ClientSecret == "" {
+	if clientID == "" || clientSecret == "" {
 		fmt.Fprintf(os.Stderr, "both GMAIL_OAUTH2_CLIENT_ID and GMAIL_OAUTH2_CLIENT_SECRET must be given.\n")
 		fmt.Fprintf(os.Stderr, "access to https://console.developers.google.com/apis/credentials\n")
 		return browser.OpenURL("https://console.developers.google.com/apis/credentials")
 	}
 
 	oauthConfig := gmailAuthConfig(
-		gmailOAuth2ClientID,
-		gmailOAuth2ClientSecret,
+		clientID,
+		clientSecret,
 		c.Port,
 	)
 
@@ -361,8 +352,8 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	// (CLI arg / env var), so hand the token back via stdout instead.
 	if !credsFromConfigFile {
 		printSetEnvInstead(
-			[2]string{"XN_GMAIL_OAUTH2_CLIENT_ID", gmailOAuth2ClientID},
-			[2]string{"XN_GMAIL_OAUTH2_CLIENT_SECRET", gmailOAuth2ClientSecret},
+			[2]string{"XN_GMAIL_OAUTH2_CLIENT_ID", clientID},
+			[2]string{"XN_GMAIL_OAUTH2_CLIENT_SECRET", clientSecret},
 			[2]string{"XN_GMAIL_REFRESH_TOKEN", tok.RefreshToken},
 		)
 		return nil
@@ -374,10 +365,10 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	}
 	config.Gmail.Token = tokBuf.String()
 
-	config.Gmail.ClientID = gmailOAuth2ClientID
+	config.Gmail.ClientID = clientID
 	// Do not write the client secret received via command-line arguments or
 	// environment variables to the configuration file.
-	//config.Gmail.ClientSecret = gmailOAuth2ClientSecret
+	//config.Gmail.ClientSecret = clientSecret
 
 	return saveConfig(config, global.Config)
 }
