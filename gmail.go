@@ -348,7 +348,7 @@ func (c gmailAuthCmd) Run(global globalCmd, args []string) error {
 	config.Gmail.ClientID = gmailOAuth2ClientID
 	// Do not write the client secret received via command-line arguments or
 	// environment variables to the configuration file.
-	config.Gmail.ClientSecret = config.Gmail.ClientSecret //gmailOAuth2ClientSecret
+	//config.Gmail.ClientSecret = gmailOAuth2ClientSecret
 
 	return saveConfig(config, global.Config)
 }
