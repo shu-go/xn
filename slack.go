@@ -47,7 +47,7 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 	config, _ := loadConfig(global.Config)
 
 	accessToken := firstNonEmpty(
-		config.Teams.WebhookURL,
+		config.Slack.AccessToken,
 		os.Getenv("XN_SLACK_ACCESS_TOKEN"))
 
 	if accessToken == "" {
