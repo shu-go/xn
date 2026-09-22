@@ -23,7 +23,8 @@ type teamsCmd struct {
 type teamsSendCmd struct {
 	_ struct{} `help:"send a notification"`
 
-	Text string
+	Text  string
+	Retry int `cli:"retry=N" default:"0" help:"retry sending N times on failure (0 = no retry)"`
 }
 
 type teamsAuthCmd struct {
@@ -98,19 +99,21 @@ func (c teamsSendCmd) Run(global globalCmd, args []string) error {
         }
     ]
 }`, c.Text)
+	bodyBytes := body.Bytes()
 
-	_, err := http.Post(webhookURL, "application/json", body)
-	if err != nil {
+	return withRetry(c.Retry, func() error {
+		resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(bodyBytes))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 300 {
+			return fmt.Errorf("teams webhook returned status %s", resp.Status)
+		}
+
 		return nil
-	}
-
-	/*
-		buf, _ := ioutil.ReadAll(response.Body)
-		println(string(buf))
-		response.Body.Close()
-	*/
-
-	return err
+	})
 }
 
 func init() {

@@ -35,6 +35,7 @@ type slackSendCmd struct {
 	Text     string   `help:"message text, or in arguments"`
 	Upload   []string `help:"filenames to upload (comma-separated or repeatable)"`
 	Markdown bool     `cli:"markdown,md" default:"true"`
+	Retry    int      `cli:"retry=N" default:"0" help:"retry sending N times on failure (0 = no retry)"`
 }
 
 type slackAuthCmd struct {
@@ -90,72 +91,75 @@ func (c slackSendCmd) Run(global globalCmd, args []string) error {
 	sl := api.New(accessToken)
 
 	ctx := context.Background()
-	chanID, err := slackGetChannelID(ctx, sl, c.Chan)
-	if err != nil {
-		return fmt.Errorf("get channel id of %s: %w", c.Chan, err)
-	}
 
-	if len(c.Upload) > 0 {
-		var files []slack.FileSummary
-		for _, upload := range c.Upload {
-			fileInfo, err := os.Stat(upload)
-			if err != nil {
-				return fmt.Errorf("failed to stat file %v: %v", upload, err)
-			}
+	return withRetry(c.Retry, func() error {
+		chanID, err := slackGetChannelID(ctx, sl, c.Chan)
+		if err != nil {
+			return fmt.Errorf("get channel id of %s: %w", c.Chan, err)
+		}
 
-			f, err := os.Open(upload)
-			if err != nil {
-				return fmt.Errorf("failed to open %s: %w", upload, err)
-			}
+		if len(c.Upload) > 0 {
+			var files []slack.FileSummary
+			for _, upload := range c.Upload {
+				fileInfo, err := os.Stat(upload)
+				if err != nil {
+					return fmt.Errorf("failed to stat file %v: %v", upload, err)
+				}
 
-			u, err := sl.GetUploadURLExternalContext(ctx, slack.GetUploadURLExternalParameters{
-				FileName: filepath.Base(upload),
-				FileSize: int(fileInfo.Size()),
-			})
-			if err != nil {
+				f, err := os.Open(upload)
+				if err != nil {
+					return fmt.Errorf("failed to open %s: %w", upload, err)
+				}
+
+				u, err := sl.GetUploadURLExternalContext(ctx, slack.GetUploadURLExternalParameters{
+					FileName: filepath.Base(upload),
+					FileSize: int(fileInfo.Size()),
+				})
+				if err != nil {
+					f.Close()
+					return fmt.Errorf("failed to get upload URL for %s: %w", upload, err)
+				}
+
+				err = sl.UploadToURL(ctx, slack.UploadToURLParameters{
+					UploadURL: u.UploadURL,
+					Reader:    f,
+					Filename:  filepath.Base(upload),
+				})
 				f.Close()
-				return fmt.Errorf("failed to get upload URL for %s: %w", upload, err)
+				if err != nil {
+					return fmt.Errorf("failed to upload %s: %w", upload, err)
+				}
+
+				files = append(files, slack.FileSummary{ID: u.FileID, Title: filepath.Base(upload)})
 			}
 
-			err = sl.UploadToURL(ctx, slack.UploadToURLParameters{
-				UploadURL: u.UploadURL,
-				Reader:    f,
-				Filename:  filepath.Base(upload),
+			_, err = sl.CompleteUploadExternalContext(ctx, slack.CompleteUploadExternalParameters{
+				Files:          files,
+				Channel:        chanID,
+				InitialComment: c.Text,
 			})
-			f.Close()
 			if err != nil {
-				return fmt.Errorf("failed to upload %s: %w", upload, err)
+				return fmt.Errorf("failed to complete upload: %w", err)
+			}
+		} else {
+			opts := []api.MsgOption{
+				api.MsgOptionUsername(c.User),
+				api.MsgOptionIconEmoji(c.Icon),
+			}
+			if c.Markdown {
+				opts = append(opts, api.MsgOptionMarkdownText(c.Text))
+			} else {
+				opts = append(opts, api.MsgOptionText(c.Text, true))
 			}
 
-			files = append(files, slack.FileSummary{ID: u.FileID, Title: filepath.Base(upload)})
+			_, _, err = sl.PostMessage("#"+c.Chan, opts...)
+			if err != nil {
+				return fmt.Errorf("failed to post to #%v: %v", c.Chan, err)
+			}
 		}
 
-		_, err := sl.CompleteUploadExternalContext(ctx, slack.CompleteUploadExternalParameters{
-			Files:          files,
-			Channel:        chanID,
-			InitialComment: c.Text,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to complete upload: %w", err)
-		}
-	} else {
-		opts := []api.MsgOption{
-			api.MsgOptionUsername(c.User),
-			api.MsgOptionIconEmoji(c.Icon),
-		}
-		if c.Markdown {
-			opts = append(opts, api.MsgOptionMarkdownText(c.Text))
-		} else {
-			opts = append(opts, api.MsgOptionText(c.Text, true))
-		}
-
-		_, _, err := sl.PostMessage("#"+c.Chan, opts...)
-		if err != nil {
-			return fmt.Errorf("failed to post to #%v: %v", c.Chan, err)
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (c slackAuthCmd) Run(global globalCmd, args []string) error {

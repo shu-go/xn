@@ -42,6 +42,17 @@ func requireHTTPS(webhookURL string) error {
 	return nil
 }
 
+// withRetry calls fn, retrying up to retry additional times (for a total of
+// retry+1 attempts) as long as it keeps returning an error. It returns the
+// error from the last attempt.
+func withRetry(retry int, fn func() error) error {
+	err := fn()
+	for i := 0; i < retry && err != nil; i++ {
+		err = fn()
+	}
+	return err
+}
+
 // printSetEnvInstead tells the user to set environment variables rather than
 // having a freshly obtained token written to the (plaintext) config file.
 // It is used when the credentials used to obtain the token did not

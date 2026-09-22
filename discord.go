@@ -28,6 +28,7 @@ type discordSendCmd struct {
 	User   string   `help:"user name"`
 	Text   string   `help:"message text, or in arguments"`
 	Upload []string `help:"filenames to upload as attachments (comma-separated or repeatable)"`
+	Retry  int      `cli:"retry=N" default:"0" help:"retry sending N times on failure (0 = no retry)"`
 }
 
 type discordAuthCmd struct {
@@ -92,7 +93,7 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 	}
 
 	var contentType string
-	var body io.Reader
+	var bodyBytes []byte
 
 	if len(c.Upload) > 0 {
 		buf := &bytes.Buffer{}
@@ -129,27 +130,29 @@ func (c discordSendCmd) Run(global globalCmd, args []string) error {
 		}
 
 		contentType = w.FormDataContentType()
-		body = buf
+		bodyBytes = buf.Bytes()
 	} else {
 		jsonBody, err := json.Marshal(payload)
 		if err != nil {
 			return err
 		}
 		contentType = "application/json"
-		body = bytes.NewReader(jsonBody)
+		bodyBytes = jsonBody
 	}
 
-	resp, err := http.Post(webhookURL, contentType, body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	return withRetry(c.Retry, func() error {
+		resp, err := http.Post(webhookURL, contentType, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
 
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("discord webhook returned status %s", resp.Status)
-	}
+		if resp.StatusCode >= 300 {
+			return fmt.Errorf("discord webhook returned status %s", resp.Status)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func init() {

@@ -41,6 +41,7 @@ type gmailSendCmd struct {
 	Attach  []string `help:"filenames to attach (comma-separated or repeatable)"`
 
 	Timeout int `cli:"timeout=TIMEOUT" default:"60" help:"set TIMEOUT (in seconds) sending a message. < 0 is infinite."`
+	Retry   int `cli:"retry=N" default:"0" help:"retry sending N times on failure (0 = no retry)"`
 }
 
 type gmailAuthCmd struct {
@@ -147,7 +148,10 @@ func (c gmailSendCmd) Run(global globalCmd, args []string) error {
 
 	msg := gmail.Message{}
 	msg.Raw = base64.StdEncoding.EncodeToString(rawMsg)
-	_, err = srv.Users.Messages.Send("me", &msg).Do()
+	err = withRetry(c.Retry, func() error {
+		_, err := srv.Users.Messages.Send("me", &msg).Do()
+		return err
+	})
 	if err != nil {
 		cancel()
 		return fmt.Errorf("failed to send mail message: %v", err)

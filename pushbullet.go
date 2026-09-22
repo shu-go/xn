@@ -29,6 +29,7 @@ type pbCmd struct {
 type pbSendCmd struct {
 	Title string `default:"xn" help:"title"`
 	Body  string `help:"body"`
+	Retry int    `cli:"retry=N" default:"0" help:"retry sending N times on failure (0 = no retry)"`
 }
 
 type pbAuthCmd struct {
@@ -79,11 +80,11 @@ func (c pbSendCmd) Run(global globalCmd, args []string) error {
 	n := req.NewNote()
 	n.Title = c.Title
 	n.Body = c.Body
-	if _, err := pb.PostPushesNote(n); err != nil {
-		return err
-	}
 
-	return nil
+	return withRetry(c.Retry, func() error {
+		_, err := pb.PostPushesNote(n)
+		return err
+	})
 }
 
 func (c pbAuthCmd) Run(global globalCmd, args []string) error {
